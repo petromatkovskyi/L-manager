@@ -1,29 +1,18 @@
-import { app, BrowserWindow, ipcMain, dialog } from 'electron'
+import { BrowserWindow, dialog } from 'electron'
 // import express from 'express';
 import fs from 'fs'
 import { google } from 'googleapis'
-import { exec } from 'child_process'
+import sqlite3 from 'sqlite3'
+// import { exec } from 'child_process';
 import * as path from 'path'
-import { v4 as uuidv4 } from 'uuid'
-
-import { frames } from './Frames'
-import operators from './OPERATORS'
-
-// const appExpress = express();
 
 const SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
+const { operators } = require(path.resolve('src/main/OPERATORS.json'))
 
-// const { operators } = require(path.join(__dirname + '/OPERATORS.json'));
-// const TOKEN_PATH = path.join(__dirname + '/token.json');
-// const SETUP_PATH = path.join(__dirname + '../src/main/setup.json');
-// const SETUP_PATH = path.join(app.getPath('userData'), 'setup.json');
-// const TOKEN_PATH = path.join(app.getPath('userData'), 'token.json');
-
-// const { operators } = require(path.resolve('src/main/OPERATORS.json'))
-
-const SETUP_PATH = path.resolve('resources/setup.json')
-const TOKEN_PATH = path.resolve('resources/token.json')
-const CREDENTIALS_PATH = path.resolve('resources/cred/credentials.json')
+const SETUP_PATH = path.resolve('src/main/setup.json')
+const TOKEN_PATH = path.resolve('src/main/token.json')
+const CREDENTIALS_PATH = path.resolve('src/main/cred/credentials.json')
+const dbPath = path.resolve('src/main/db/appdata.sql')
 
 const credentials = require(CREDENTIALS_PATH)
 
@@ -31,60 +20,7 @@ const { client_secret, client_id, redirect_uris } = credentials.installed
 
 const oAuth2Client = new google.auth.OAuth2(client_id, client_secret, redirect_uris)
 
-// const db = new sqlite3.Database(dbPath);
-
-let mainWindow
-
-function createWindow() {
-  mainWindow = new BrowserWindow({
-    width: 1000,
-    height: 1000,
-    webPreferences: {
-      preload: path.join(__dirname, '../preload/index.js')
-    }
-    // autoHideMenuBar: true,
-  })
-
-  // Vite dev server URL
-  mainWindow.webContents.openDevTools()
-  mainWindow.loadURL('http://localhost:5173')
-
-  mainWindow.on('closed', () => (mainWindow = null))
-}
-
-app.on('ready', async () => {
-  //token boolean
-
-  const token = await checkAccessToken()
-
-  //! make some magic with redirection and choosing of path
-
-  createWindow()
-})
-
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit()
-  }
-})
-
-app.on('activate', () => {
-  if (mainWindow == null) {
-    createWindow()
-  }
-})
-
-ipcMain.handle('getSetups', getSetups)
-ipcMain.handle('choosePath', choosePath)
-ipcMain.handle('getSheetNames', getSheetNames)
-ipcMain.handle('checkSpreadSheetId', checkSpreadSheetId)
-ipcMain.handle('saveSetups', saveSetups)
-ipcMain.handle('findNewFrames', findNewFrames)
-ipcMain.handle('checkFolders', checkFolders)
-ipcMain.handle('saveNewFramesInDB', saveNewFramesInDB)
-ipcMain.handle('downloadFile', downloadFile)
-ipcMain.handle('unArchive', unArchive)
-ipcMain.handle('getTakenFrames', () => frames.getFramesData())
+const db = new sqlite3.Database(dbPath)
 
 async function authorize() {
   return new Promise((res) => {
@@ -135,9 +71,8 @@ async function authorize() {
 
 async function checkAccessToken(clientToken) {
   let token = clientToken || null
-
   try {
-    if (clientToken == null) {
+    if (!clientToken) {
       const tokenData = fs.readFileSync(TOKEN_PATH, 'utf8')
       token = JSON.parse(tokenData)
     }
@@ -146,17 +81,16 @@ async function checkAccessToken(clientToken) {
       oAuth2Client.setCredentials(token)
 
       return true
-    }
+    } else if (token && token.refresh_token) {
+      await refreshAccessToken(token.refresh_token)
 
-    if (token && token.refresh_token) {
-      const isRefreshed = await refreshAccessToken(token.refresh_token)
-
-      isRefreshed || (await authorize())
+      return true
     } else {
       await authorize()
+      return null
     }
-  } catch (e) {
-    console.error('Error while reading file 153: ', e.message)
+  } catch (error) {
+    console.error('Error while reading file: ', error.message)
     return null
   }
 }
@@ -167,8 +101,7 @@ async function refreshAccessToken(refreshToken) {
 
     oAuth2Client.refreshAccessToken((err, newToken) => {
       if (err) {
-        console.log(err.message)
-        reject(false)
+        reject(err)
       } else {
         oAuth2Client.setCredentials(newToken)
         fs.writeFileSync(TOKEN_PATH, JSON.stringify(newToken))
@@ -289,19 +222,20 @@ async function getSheetNames(req, data) {
 }
 
 async function checkSpreadSheetId(req, id) {
-  await checkAccessToken(oAuth2Client.credentials)
+  const auth = oAuth2Client
+
+  await checkAccessToken(auth.credentials)
 
   if (!id) {
     throw new Error('Spreed sheet id empty')
   }
 
-  const sheets = google.sheets({ version: 'v4', auth: oAuth2Client })
+  const sheets = google.sheets({ version: 'v4', auth })
 
   try {
     const response = await sheets.spreadsheets.get({
       spreadsheetId: id
     })
-    console.log(response?.data?.properties?.title)
     return !!response?.data?.properties?.title
   } catch (error) {
     console.error('Error getting sheet titles:', error.message)
@@ -573,66 +507,12 @@ async function downloadFile(req, data) {
   }
 }
 
-async function unArchive(req, folderPath) {
-  try {
-    const sourceFilesFolder = path.resolve('src/main/serviceFiles')
-    const targetFilesFolder = folderPath
-    console.log(sourceFilesFolder, targetFilesFolder)
-
-    console.log('593', !isDirectoryHas('.laz', targetFilesFolder))
-
-    if (!isDirectoryHas('.laz', targetFilesFolder)) return null
-
-    await copyFiles(sourceFilesFolder, targetFilesFolder, ['laszip.exe'])
-
-    const batFilePath = path.join(targetFilesFolder, 'laz-searcher_laz_to_las.bat')
-
-    createBatFile(targetFilesFolder)
-
-    exec(`start "" "${batFilePath}"`, (error) => {
-      if (error) {
-        console.error(`Error of execution .bat file: ${error.message}`)
-        return
-      }
-      console.log('Execution .bat file was over.')
-    })
-  } catch (error) {
-    console.error('Error in function unArchive:', error.message)
-  }
-}
-
-async function copyFiles(sourceFolder, targetFolder, files) {
-  for (const file of files) {
-    const sourcePath = path.join(sourceFolder, file)
-    const targetPath = path.join(targetFolder, file)
-    await fs.copyFile(sourcePath, targetPath, fs.constants.COPYFILE_EXCL, async (err) => {
-      if (err) {
-        console.error('error:', err)
-      } else {
-        console.log('success')
-      }
-    })
-    console.log(`File '${file}' copied to '${targetFolder}'.`)
-  }
-}
-
-function createBatFile(destinationFolderPath) {
-  const batContent = `@echo off
-cd "${destinationFolderPath}"
-laszip -i *.laz -olas
-del *.laz  rem
-exit`
-
-  const batFilePath = path.join(destinationFolderPath, 'laz-searcher_laz_to_las.bat')
-
-  fs.writeFileSync(batFilePath, batContent)
-
-  console.log(`.bat file created at: ${batFilePath}`)
-}
-
-async function checkFolders(req, block) {
+async function checkFolders(req, data) {
   const { searchingPath, destPath, pathType } = getSetups()
+  console.log(searchingPath, destPath, pathType)
+  const { block } = data
   const blockPath = path.join(destPath, block)
+  console.log(blockPath)
 
   let destinationFolderPath
   try {
@@ -714,20 +594,14 @@ async function saveNewFramesInDB(_, data) {
   //   block: '2701',
   //   framesLocation:"C:\lidar\test\2701\1",
   // };
-  data.setup = getSetups()
-  data.schema = createFramesScheme(await getAllBlocksFrames(data.block))
-  data.adjacentFrames = getAdjacentFrames(
-    data.frames.map((frameObj) => frameObj.section),
-    data.schema
-  )
-  data.id = uuidv4()
+  data.setup = JSON.stringify(getSetups())
+  data.schema = `${createFramesScheme(await getAllBlocksFrames(data.block))}`
+  data.adjacentFrames = getAdjacentFrames(data.frames, data.schema)
 
-  frames.addNewFrames(data)
+  await insertDataIntoFramesTable(data)
+  const dbData = await getAllFrames()
 
-  // await insertDataIntoFramesTable(data);
-  // const dbData = await getAllFrames();
-
-  return data
+  return dbData
 }
 
 function getAdjacentFrames(frames, schema) {
@@ -745,6 +619,7 @@ function getAdjacentFrames(frames, schema) {
         : null
     })
   )
+  console.log(adjacentFrames)
   return adjacentFrames
 }
 
@@ -782,15 +657,72 @@ async function getAllBlocksFrames(block) {
   }
 }
 
-// function isFramesJSON(path) {
-//   try {
-//     fs.accessSync(path, fs.constants.F_OK)
-//     return true
-//   } catch (err) {
-//     return false
-//   }
-// }
+async function insertDataIntoFramesTable(dataToInsert) {
+  const insertQuery = `
+    INSERT INTO frames (schema, block, frames, siblings, framesLocation, setup)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `
 
-//! npm install better-sqlite3-with-prebuilds
-// python error
-//node-gyp could help
+  return await new Promise((resolve, reject) => {
+    db.run(
+      insertQuery,
+      [
+        dataToInsert.schema,
+        dataToInsert.block,
+        dataToInsert.frames,
+        dataToInsert.siblings,
+        dataToInsert.framesLocation,
+        dataToInsert.setup
+      ],
+      function (err) {
+        if (err) {
+          console.error(`Error inserting data: ${err.message}`)
+          reject(err)
+        } else {
+          console.log(`Data inserted successfully with row ID ${this.lastID}`)
+          resolve(this.lastID)
+        }
+
+        db.close()
+      }
+    )
+  })
+}
+
+async function getAllFrames() {
+  const selectQuery = 'SELECT * FROM frames'
+
+  return await new Promise((resolve, reject) => {
+    db.all(selectQuery, [], (err, rows) => {
+      if (err) {
+        console.error(`Error querying frames: ${err.message}`)
+        reject(err)
+      } else {
+        resolve(rows)
+      }
+
+      db.close()
+    })
+  })
+}
+export const func = {
+  getAllFrames,
+  insertDataIntoFramesTable,
+  getAllBlocksFrames,
+  getAdjacentFrames,
+  isDirectoryHas,
+  checkFolders,
+  saveNewFramesInDB,
+  downloadFile,
+  trimSchema,
+  createFramesScheme,
+  findNewFrames,
+  checkSpreadSheetId,
+  getSheetNames,
+  choosePath,
+  saveSetups,
+  getSetups,
+  refreshAccessToken,
+  checkAccessToken,
+  authorize
+}
