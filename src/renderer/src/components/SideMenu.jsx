@@ -1,5 +1,5 @@
-import InboxIcon from '@mui/icons-material/MoveToInbox';
-import StarBorder from '@mui/icons-material/StarBorder';
+import InboxIcon from '@mui/icons-material/MoveToInbox'
+import StarBorder from '@mui/icons-material/StarBorder'
 import {
   List,
   ListItem,
@@ -7,12 +7,12 @@ import {
   ListItemIcon,
   ListItemText,
   ListSubheader,
-  Box,
-} from '@mui/material';
-import { Link, useLocation } from 'react-router-dom';
+  Box
+} from '@mui/material'
+import { Link, useLocation } from 'react-router-dom'
 
 export default function SideMenu() {
-  let { pathname } = useLocation();
+  let { pathname } = useLocation()
 
   return (
     <Box>
@@ -67,5 +67,5 @@ export default function SideMenu() {
         </ListItem>
       </List>
     </Box>
-  );
+  )
 }

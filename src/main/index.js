@@ -84,7 +84,9 @@ ipcMain.handle('checkFolders', checkFolders)
 ipcMain.handle('saveNewFramesInDB', saveNewFramesInDB)
 ipcMain.handle('downloadFile', downloadFile)
 ipcMain.handle('unArchive', unArchive)
-ipcMain.handle('getTakenFrames', () => frames.getFramesData())
+ipcMain.handle('fetchTakenFrames', () => frames.getFramesData())
+ipcMain.handle('deleteFramesData', (_, id) => frames.deleteFrames(id))
+ipcMain.handle('isPathValid', isPathValid)
 
 async function authorize() {
   return new Promise((res) => {
@@ -487,7 +489,6 @@ function createFramesScheme(files) {
     if (currListNum - firstListNum === 13) {
       const prevListNum = +prefixes[i - 1].split('-')[2]
       if (prevListNum && prevListNum - firstListNum === 12) {
-        console.log('12')
         configuredLists.forEach((row, index) => {
           if (index > 63) {
             row.push(...fullNomenclature[i][index])
@@ -532,9 +533,46 @@ function trimSchema(schema) {
     [trimmedEmptyRows[0].length - 1, 0]
   )
 
-  trimmedEmptyRows = trimmedEmptyRows.map((row) => row.slice(trimIndexes[0], trimIndexes[1] + 1))
+  const trimmedSchema = trimmedEmptyRows.map((row) => row.slice(trimIndexes[0], trimIndexes[1] + 1))
 
-  return trimmedEmptyRows
+  return trimmedSchema
+}
+
+function trimAdjacentSchema(schema, frames, adjacent) {
+  const frameLabels = [...frames, ...adjacent]
+
+  let trimmedRows = schema.filter((row) => row.some((item) => frameLabels.includes(item)))
+
+  let trimIndexes = trimmedRows.reduce(
+    (indexesAcc, subArr) => {
+      const startNonNullIndex = subArr.findIndex((item) => frameLabels.includes(item))
+      const endNonNullIndex = subArr.findLastIndex((item) => frameLabels.includes(item))
+
+      const indexes = [
+        startNonNullIndex < indexesAcc[0] && startNonNullIndex > -1
+          ? startNonNullIndex
+          : indexesAcc[0],
+        endNonNullIndex > indexesAcc[1] ? endNonNullIndex : indexesAcc[1]
+      ]
+
+      return indexes
+    },
+    [schema[0].length - 1, 0]
+  )
+
+  const trimmedSchema = trimmedRows.map((row) =>
+    row.slice(trimIndexes[0], trimIndexes[1] + 1).map((frameLabel) => {
+      const frameObj = {
+        frameLabel,
+        selectable: adjacent.includes(frameLabel),
+        isTakenFrames: frames.includes(frameLabel)
+      }
+
+      return frameObj
+    })
+  )
+
+  return trimmedSchema
 }
 
 async function downloadFile(req, data) {
@@ -573,21 +611,20 @@ async function downloadFile(req, data) {
   }
 }
 
-async function unArchive(req, folderPath) {
+async function unArchive(_, folderPath) {
   try {
-    const sourceFilesFolder = path.resolve('src/main/serviceFiles')
+    const sourceFilesFolder = path.resolve('resources/serviceFiles')
     const targetFilesFolder = folderPath
+    const batFilePath = path.join(targetFilesFolder, 'laz-searcher_laz_to_las.bat')
     console.log(sourceFilesFolder, targetFilesFolder)
 
-    console.log('593', !isDirectoryHas('.laz', targetFilesFolder))
-
     if (!isDirectoryHas('.laz', targetFilesFolder)) return null
-
-    await copyFiles(sourceFilesFolder, targetFilesFolder, ['laszip.exe'])
-
-    const batFilePath = path.join(targetFilesFolder, 'laz-searcher_laz_to_las.bat')
-
-    createBatFile(targetFilesFolder)
+    if (!isDirectoryHas('laszip.exe', targetFilesFolder)) {
+      await copyFiles(sourceFilesFolder, targetFilesFolder, ['laszip.exe'])
+    }
+    if (!isDirectoryHas('laz-searcher_laz_to_las.bat', targetFilesFolder)) {
+      createBatFile(targetFilesFolder)
+    }
 
     exec(`start "" "${batFilePath}"`, (error) => {
       if (error) {
@@ -714,12 +751,12 @@ async function saveNewFramesInDB(_, data) {
   //   block: '2701',
   //   framesLocation:"C:\lidar\test\2701\1",
   // };
+  //! place where should make checking of file name and then decide how to make schema and save data
+
   data.setup = getSetups()
   data.schema = createFramesScheme(await getAllBlocksFrames(data.block))
-  data.adjacentFrames = getAdjacentFrames(
-    data.frames.map((frameObj) => frameObj.section),
-    data.schema
-  )
+  data.adjacentFrames = getAdjacentFrames(data.frames, data.schema)
+  data.adjacentSchema = trimAdjacentSchema(data.schema, data.frames, data.adjacentFrames)
   data.id = uuidv4()
 
   frames.addNewFrames(data)
@@ -782,14 +819,56 @@ async function getAllBlocksFrames(block) {
   }
 }
 
-// function isFramesJSON(path) {
-//   try {
-//     fs.accessSync(path, fs.constants.F_OK)
-//     return true
-//   } catch (err) {
-//     return false
-//   }
-// }
+function isPathValid(_, path) {
+  try {
+    fs.accessSync(path, fs.constants.F_OK)
+    return true
+  } catch (err) {
+    return false
+  }
+}
+
+function analyzeFileName(fileName) {
+  let result = {
+    row: '',
+    col: '',
+    schemaOfName: '',
+    divider: ''
+  }
+
+  // Check: 'a_1', 'a_2', 'b_1'
+  let match = fileName.match(/^([a-z])_([0-9]+)$/)
+  if (match) {
+    result.row = match[1]
+    result.col = match[2]
+    result.schemaOfName = 'a_n'
+    result.divider = '_'
+    return result
+  }
+
+  // Check: '1a', '2a', '1b'
+  match = fileName.match(/^([0-9]+)([a-z])$/)
+  if (match) {
+    result.row = match[2]
+    result.col = match[1]
+    result.schemaOfName = 'na'
+    result.divider = ''
+    return result
+  }
+
+  // Check: 'a1', 'a2', 'b1'
+  match = fileName.match(/^([a-z])([0-9]+)$/)
+  if (match) {
+    result.row = match[1]
+    result.col = match[2]
+    result.schemaOfName = 'an'
+    result.divider = ''
+    return result
+  }
+
+  result.schemaOfName = 'Unknown'
+  return result
+}
 
 //! npm install better-sqlite3-with-prebuilds
 // python error

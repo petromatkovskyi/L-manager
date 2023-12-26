@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Box, Card, CardContent, Typography } from '@mui/joy';
+import { useEffect, useState } from 'react'
+import { Box, Card, CardContent, Typography } from '@mui/joy'
 
 export default function RendererConfigFile() {
   const [files, setFiles] = useState([
@@ -374,93 +374,92 @@ export default function RendererConfigFile() {
     'N-34-124-C-c-3-1-1-2',
     'N-34-124-C-c-3-1-2-1',
     'N-34-124-C-c-3-1-2-2',
-    'N-34-124-C-c-3-2-1-1',
-  ]);
+    'N-34-124-C-c-3-2-1-1'
+  ])
 
   const myFiles = [
     'N-34-124-C-c-1-3-1-1',
     'N-34-124-C-c-1-3-1-2',
     'N-34-124-C-c-1-3-1-3',
     'N-34-124-C-c-1-3-1-4',
-    'N-34-124-C-a-3-1-4-4',
-  ];
+    'N-34-124-C-a-3-1-4-4'
+  ]
 
-  const [res, setRes] = useState([]);
+  const [res, setRes] = useState([])
 
-  const taken = [];
+  const taken = []
 
   function createFileConfig() {
     const listNames = files.reduce((acc, curr) => {
-      const pref = curr.match(/([A-Z]){1}-\d{1,3}-\d{1,3}/);
-      if (!acc.includes(pref[0])) acc.push(pref[0]);
+      const pref = curr.match(/([A-Z]){1}-\d{1,3}-\d{1,3}/)
+      if (!acc.includes(pref[0])) acc.push(pref[0])
 
-      return acc;
-    }, []);
+      return acc
+    }, [])
 
     //M-34-65-i-j-y-u-q-w
 
     const variants = [
       [
         ['A', 'B'], //i=0
-        ['C', 'D'], //i=1
+        ['C', 'D'] //i=1
       ],
       [
         ['a', 'b'],
-        ['c', 'd'],
+        ['c', 'd']
       ],
       [
         ['1', '2'],
-        ['3', '4'],
+        ['3', '4']
       ],
       [
         ['1', '2'],
-        ['3', '4'],
+        ['3', '4']
       ],
       [
         ['1', '2'],
-        ['3', '4'],
+        ['3', '4']
       ],
       [
         ['1', '2'],
-        ['3', '4'],
-      ],
-    ];
+        ['3', '4']
+      ]
+    ]
 
     const fullNo = listNames.map((listName) => {
-      const nomenclature = [];
+      const nomenclature = []
 
       for (let i = 0; i < 2; i++) {
         //[]A
-        nomenclature.push([]);
+        nomenclature.push([])
 
         for (let ii = 0; ii < 2; ii++) {
           //A
 
           for (let j = 0; j < 2; j++) {
             //[a]
-            if (nomenclature[i].length < 2) nomenclature[i].push([]);
+            if (nomenclature[i].length < 2) nomenclature[i].push([])
 
             for (let jj = 0; jj < 2; jj++) {
               //a
 
               for (let y = 0; y < 2; y++) {
                 //[1]
-                if (nomenclature[i][j].length < 2) nomenclature[i][j].push([]);
+                if (nomenclature[i][j].length < 2) nomenclature[i][j].push([])
 
                 for (let yy = 0; yy < 2; yy++) {
                   //1
 
                   for (let u = 0; u < 2; u++) {
                     //[1]
-                    if (nomenclature[i][j][y].length < 2) nomenclature[i][j][y].push([]);
+                    if (nomenclature[i][j][y].length < 2) nomenclature[i][j][y].push([])
 
                     for (let uu = 0; uu < 2; uu++) {
                       //1
 
                       for (let q = 0; q < 2; q++) {
                         //[1]
-                        if (nomenclature[i][j][y][u].length < 2)
-                          nomenclature[i][j][y][u].push([]);
+                        if (nomenclature[i][j][y][u].length < 2) nomenclature[i][j][y][u].push([])
 
                         for (let qq = 0; qq < 2; qq++) {
                           //1
@@ -468,14 +467,14 @@ export default function RendererConfigFile() {
                           for (let w = 0; w < 2; w++) {
                             //[1]
                             if (nomenclature[i][j][y][u][q].length < 2)
-                              nomenclature[i][j][y][u][q].push([]);
+                              nomenclature[i][j][y][u][q].push([])
 
                             for (let ww = 0; ww < 2; ww++) {
                               //1
 
                               nomenclature[i][j][y][u][q][w].push(
                                 `${listName}-${variants[0][i][ii]}-${variants[1][j][jj]}-${variants[2][y][yy]}-${variants[3][u][uu]}-${variants[4][q][qq]}-${variants[5][w][ww]}`
-                              );
+                              )
                             }
                           }
                         }
@@ -488,64 +487,62 @@ export default function RendererConfigFile() {
           }
         }
       }
-      return nomenclature.flat(5);
-    });
+      return nomenclature.flat(5)
+    })
 
-    const configuredLists = [];
+    const configuredLists = []
 
     for (let i = 0; i < listNames.length; i++) {
-      const firstListNum = +listNames[0].split('-')[2];
+      const firstListNum = +listNames[0].split('-')[2]
 
-      const currListNum = +listNames[i].split('-')[2];
+      const currListNum = +listNames[i].split('-')[2]
 
       if (i === 0) {
-        configuredLists.push(...fullNo[0]);
-        continue;
+        configuredLists.push(...fullNo[0])
+        continue
       }
 
       if (currListNum - firstListNum === 1) {
-        configuredLists.forEach((row, index) => row.push(...fullNo[i][index]));
-        continue;
+        configuredLists.forEach((row, index) => row.push(...fullNo[i][index]))
+        continue
       }
 
       if (currListNum - firstListNum === 12) {
-        configuredLists.push(...fullNo[i]);
-        continue;
+        configuredLists.push(...fullNo[i])
+        continue
       }
 
       if (currListNum - firstListNum === 13) {
-        const prevListNum = +listNames[i - 1].split('-')[2];
+        const prevListNum = +listNames[i - 1].split('-')[2]
         if (prevListNum && prevListNum - firstListNum === 12) {
-          console.log('12');
+          console.log('12')
           configuredLists.forEach((row, index) => {
             if (index > 63) {
-              row.push(...fullNo[i][index]);
+              row.push(...fullNo[i][index])
             }
-          });
-          continue;
+          })
+          continue
         } else {
           //create empty array for currListNum - 1
-          const prevList = Array.from({ length: 64 }, () =>
-            Array.from({ length: 64 }, () => null)
-          );
+          const prevList = Array.from({ length: 64 }, () => Array.from({ length: 64 }, () => null))
           prevList.forEach((row, index) => {
-            row.push(...fullNo[i][index]);
-          });
-          configuredLists.push(...prevList);
+            row.push(...fullNo[i][index])
+          })
+          configuredLists.push(...prevList)
         }
       }
     }
 
     const newMap = configuredLists.map((row) =>
       row.map((listName) => (files.includes(listName) ? listName : null))
-    );
+    )
 
-    setRes(trimArr(newMap));
+    setRes(trimArr(newMap))
   }
 
   useEffect(() => {
-    createFileConfig();
-  }, []);
+    createFileConfig()
+  }, [])
 
   return (
     <Box
@@ -553,7 +550,7 @@ export default function RendererConfigFile() {
         display: 'grid',
         gridTemplateRows: 'repeat(auto-fill, minmax(100px))',
         gap: 1,
-        mt: 2,
+        mt: 2
       }}
     >
       {res.map((row, index) => (
@@ -570,13 +567,13 @@ export default function RendererConfigFile() {
                   myFiles.includes(file)
                     ? 'blue'
                     : file != null &&
-                      (myFiles.includes(row[i + 1]) ||
-                        myFiles.includes(row[i - 1]) ||
-                        myFiles.includes(res[index - 1]?.[i]) ||
-                        myFiles.includes(res[index + 1]?.[i]))
-                    ? 'yellow'
-                    : 'transparent'
-                }`,
+                        (myFiles.includes(row[i + 1]) ||
+                          myFiles.includes(row[i - 1]) ||
+                          myFiles.includes(res[index - 1]?.[i]) ||
+                          myFiles.includes(res[index + 1]?.[i]))
+                      ? 'yellow'
+                      : 'transparent'
+                }`
               }}
               color="warning"
             >
@@ -586,7 +583,7 @@ export default function RendererConfigFile() {
                   myFiles.includes(row[i + 1]) ||
                   myFiles.includes(row[i - 1]) ||
                   myFiles.includes(res[index - 1]?.[i]) ||
-                  myFiles.includes(res[index + 1]?.[i]),
+                  myFiles.includes(res[index + 1]?.[i])
               })}
               <CardContent>
                 <Typography level="title-md" sx={{ fontWeight: file ? 'bold' : '' }}>
@@ -598,32 +595,30 @@ export default function RendererConfigFile() {
         </Box>
       ))}
     </Box>
-  );
+  )
 }
 
 function trimArr(arr) {
-  let trimmedEmptyRows = arr.filter((row) => !row.every((item) => item === null));
+  let trimmedEmptyRows = arr.filter((row) => !row.every((item) => item === null))
 
   let trimIndexes = trimmedEmptyRows.reduce(
     (indexesAcc, subArr) => {
-      const startNonNullIndex = subArr.findIndex((item) => item !== null);
-      const endNonNullIndex = subArr.findLastIndex((item) => item !== null);
+      const startNonNullIndex = subArr.findIndex((item) => item !== null)
+      const endNonNullIndex = subArr.findLastIndex((item) => item !== null)
 
       const indexes = [
         startNonNullIndex < indexesAcc[0] && startNonNullIndex > -1
           ? startNonNullIndex
           : indexesAcc[0],
-        endNonNullIndex > indexesAcc[1] ? endNonNullIndex : indexesAcc[1],
-      ];
+        endNonNullIndex > indexesAcc[1] ? endNonNullIndex : indexesAcc[1]
+      ]
 
-      return indexes;
+      return indexes
     },
     [trimmedEmptyRows[0].length - 1, 0]
-  );
+  )
 
-  trimmedEmptyRows = trimmedEmptyRows.map((row) =>
-    row.slice(trimIndexes[0], trimIndexes[1] + 1)
-  );
+  trimmedEmptyRows = trimmedEmptyRows.map((row) => row.slice(trimIndexes[0], trimIndexes[1] + 1))
 
-  return trimmedEmptyRows;
+  return trimmedEmptyRows
 }

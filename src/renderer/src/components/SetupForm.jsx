@@ -1,35 +1,36 @@
-import InfoOutlined from '@mui/icons-material/InfoOutlined';
-import KeyboardArrowDown from '@mui/icons-material/KeyboardArrowDown';
+import InfoOutlined from '@mui/icons-material/InfoOutlined'
+import KeyboardArrowDown from '@mui/icons-material/KeyboardArrowDown'
 import {
-  Snackbar,
   Box,
   Button,
   FormControl,
   FormHelperText,
-  FormLabel,
   Grid,
   Input,
   Option,
   Radio,
   RadioGroup,
   Select,
-} from '@mui/joy';
-import { radioClasses } from '@mui/joy/Radio';
-import { selectClasses } from '@mui/joy/Select';
+  Snackbar
+} from '@mui/joy'
+import { radioClasses } from '@mui/joy/Radio'
+import { selectClasses } from '@mui/joy/Select'
+import PropTypes from 'prop-types'
 
-import { useFormik } from 'formik';
-import { useEffect, useState } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
-import * as Yup from 'yup';
-import { fetchSetup } from '../store/newFramesSlice';
+import { useFormik } from 'formik'
+import { useEffect, useState } from 'react'
+import { useDispatch, useSelector } from 'react-redux'
+import * as Yup from 'yup'
+import { fetchSetup, framesSelector } from '../store/framesSlice'
+import SpanDecorator from './shared/SpanDecorator'
 
 Yup.addMethod(Yup.string, 'checkSpreadsheetId', function (errMsg) {
   return this.test('test-valid-spreadsheet-id', errMsg, async function (value) {
-    const { path, createError } = this;
-    const isIdValid = await electronApi.checkSpreadSheetId(value);
-    return isIdValid || createError({ path, message: errMsg });
-  });
-});
+    const { path, createError } = this
+    const isIdValid = await electronApi.checkSpreadSheetId(value)
+    return isIdValid || createError({ path, message: errMsg })
+  })
+})
 
 const SetupSchema = Yup.object().shape({
   pathType: Yup.string().required('Path type is required'),
@@ -39,25 +40,24 @@ const SetupSchema = Yup.object().shape({
   spreadsheetLink: Yup.string()
     .required('Spreadsheet link is required')
     .matches(/^https:\/\/docs.google.com\/spreadsheets\/d\//, {
-      message: 'Spreadsheet link isn`t valid',
+      message: 'Spreadsheet link isn`t valid'
     }),
   spreadsheetId: Yup.string()
     .required('Spreadsheet Id is required')
     .checkSpreadsheetId(
       'Spreadsheet Id isn`t valid. Spreadsheet has not been find. Please check link above'
     ),
-  sheetName: Yup.string().required('Sheet name is required'),
-});
+  sheetName: Yup.string().required('Sheet name is required')
+})
 
-export default function SetupForm({ setIsSaved }) {
-  const framesState = useSelector((state) => state.newFrames);
-  const dispatch = useDispatch();
-  const { handleSubmit, values, handleChange, errors, setValues, status, setStatus } =
-    useFormik({
-      initialValues: framesState.setup,
-      onSubmit: onSubmitSetups,
-      validationSchema: SetupSchema,
-    });
+function SetupForm({ setIsSaved }) {
+  const framesState = useSelector(framesSelector)
+  const dispatch = useDispatch()
+  const { handleSubmit, values, handleChange, errors, setValues, status, setStatus } = useFormik({
+    initialValues: framesState.setup,
+    onSubmit: onSubmitSetups,
+    validationSchema: SetupSchema
+  })
   const [feedback, setFeedback] = useState({
     open: false,
     message: '',
@@ -65,91 +65,89 @@ export default function SetupForm({ setIsSaved }) {
     color: 'neutral',
     duration: 5000,
     vertical: 'bottom',
-    horizontal: 'left',
-  });
+    horizontal: 'left'
+  })
 
-  const [sheetNames, setSheetNames] = useState([]);
+  const [sheetNames, setSheetNames] = useState([])
 
   const onSelectChange = (e, newValue, name) => {
     const synthEvent = {
       target: {
         value: newValue,
-        name,
-      },
-    };
-    onFieldChange(synthEvent);
-  };
+        name
+      }
+    }
+    onFieldChange(synthEvent)
+  }
 
   const onChoosePath = async (e) => {
-    const path = await electronApi.choosePath();
+    const path = await electronApi.choosePath()
     if (path) {
       const synthEvent = {
         target: {
           value: path,
-          name: e.target.name,
-        },
-      };
-      onFieldChange(synthEvent);
+          name: e.target.name
+        }
+      }
+      onFieldChange(synthEvent)
     }
-  };
+  }
 
   const getSheetNames = async (e, id) => {
     if (values?.spreadsheetId || id) {
       const sheetNamesRes = await electronApi.getSheetNames({
-        spreadsheetId: id || values?.spreadsheetId,
-      });
+        spreadsheetId: id || values?.spreadsheetId
+      })
       if (!!sheetNamesRes?.length) {
-        setSheetNames(sheetNamesRes);
-        return;
+        setSheetNames(sheetNamesRes)
+        return
       }
-      setSheetNames([]);
+      setSheetNames([])
     }
-  };
+  }
 
   const onChangeSpreadsheetLink = async (e) => {
-    const spreadsheetLink = e.target.value;
-    const regex = /\/d\/([a-zA-Z0-9-_]+)\//;
-    const match = spreadsheetLink.match(regex);
+    const spreadsheetLink = e.target.value
+    const regex = /\/d\/([a-zA-Z0-9-_]+)\//
+    const match = spreadsheetLink.match(regex)
 
-    status === 'saved' && setStatus('changed');
+    status === 'saved' && setStatus('changed')
 
     setValues({
       ...values,
       spreadsheetLink,
-      spreadsheetId: match && match[1] ? match[1] : '',
-    });
-  };
+      spreadsheetId: match && match[1] ? match[1] : ''
+    })
+  }
 
   const onFieldChange = (e) => {
-    status === 'saved' && setStatus('changed');
-    handleChange(e);
-  };
+    status === 'saved' && setStatus('changed')
+    handleChange(e)
+  }
 
   async function onSubmitSetups(setups) {
-    const res = await electronApi.saveSetups(setups);
+    const res = await electronApi.saveSetups(setups)
     setFeedback((prev) => ({
       ...prev,
       color: res.success ? 'success' : 'danger',
-      message: res.message,
-    }));
-    res.success && setStatus('saved');
+      message: res.message
+    }))
+    res.success && setStatus('saved')
   }
 
   useEffect(() => {
-    dispatch(fetchSetup());
-  }, []);
+    dispatch(fetchSetup())
+  }, [])
 
   useEffect(() => {
-    setValues(framesState.setup);
-    getSheetNames(null, framesState.setup.spreadsheetId);
-    setStatus(
-      Object.values(framesState.setup).some((item) => item == false) ? 'changed' : 'saved'
-    );
-  }, [framesState.setup]);
+    setValues(framesState.setup)
+    getSheetNames(null, framesState.setup.spreadsheetId)
+    setStatus(Object.values(framesState.setup).some((item) => item == false) ? 'changed' : 'saved')
+  }, [framesState.setup])
 
   useEffect(() => {
-    setIsSaved(status === 'saved');
-  }, [status]);
+    setIsSaved(status === 'saved')
+  }, [status])
 
   return (
     <Box component="form" title="Setups" gap="2" onSubmit={handleSubmit}>
@@ -189,16 +187,16 @@ export default function SetupForm({ setIsSaved }) {
                   height: 38,
                   '&:not([data-first-child])': {
                     borderLeft: '1px solid',
-                    borderColor: 'divider',
+                    borderColor: 'divider'
                   },
                   [`&[data-first-child] .${radioClasses.action}`]: {
                     borderTopLeftRadius: `calc(${theme.vars.radius.sm} - 1px)`,
-                    borderBottomLeftRadius: `calc(${theme.vars.radius.sm} - 1px)`,
+                    borderBottomLeftRadius: `calc(${theme.vars.radius.sm} - 1px)`
                   },
                   [`&[data-last-child] .${radioClasses.action}`]: {
                     borderTopRightRadius: `calc(${theme.vars.radius.sm} - 1px)`,
-                    borderBottomRightRadius: `calc(${theme.vars.radius.sm} - 1px)`,
-                  },
+                    borderBottomRightRadius: `calc(${theme.vars.radius.sm} - 1px)`
+                  }
                 })}
               >
                 <Radio
@@ -210,10 +208,10 @@ export default function SetupForm({ setIsSaved }) {
                   slotProps={{
                     input: { 'aria-label': item },
                     action: {
-                      sx: { borderRadius: 0, transition: 'none' },
+                      sx: { borderRadius: 0, transition: 'none' }
                     },
                     label: { sx: { lineHeight: 0 } },
-                    checked: { sx: { background: 'red' } },
+                    checked: { sx: { background: 'red' } }
                   }}
                 />
               </Box>
@@ -225,9 +223,9 @@ export default function SetupForm({ setIsSaved }) {
             <Input
               startDecorator={<SpanDecorator label="Server" />}
               endDecorator={
-                <BtnDecorator onClick={onChoosePath} name="searchingPath">
+                <Button onClick={onChoosePath} name="searchingPath" variant="soft">
                   Searching Path
-                </BtnDecorator>
+                </Button>
               }
               readOnly
               name="searchingPath"
@@ -247,9 +245,9 @@ export default function SetupForm({ setIsSaved }) {
             <Input
               startDecorator={<SpanDecorator label="Local" />}
               endDecorator={
-                <BtnDecorator onClick={onChoosePath} name="destPath">
+                <Button onClick={onChoosePath} name="destPath" variant="soft">
                   Destination Path
-                </BtnDecorator>
+                </Button>
               }
               name="destPath"
               readOnly
@@ -279,9 +277,9 @@ export default function SetupForm({ setIsSaved }) {
                 [`& .${selectClasses.indicator}`]: {
                   transition: '0.2s',
                   [`&.${selectClasses.expanded}`]: {
-                    transform: 'rotate(-180deg)',
-                  },
-                },
+                    transform: 'rotate(-180deg)'
+                  }
+                }
               }}
             >
               <Option selected disabled value="">
@@ -325,7 +323,7 @@ export default function SetupForm({ setIsSaved }) {
         <Grid>
           <FormControl
             error={!!errors.spreadsheetId}
-            color={!!errors.spreadsheetId ? 'danger' : 'neutral'}
+            color={errors?.spreadsheetId ? 'danger' : 'neutral'}
           >
             <Input
               startDecorator={<SpanDecorator label="Spreadsheet Id" />}
@@ -358,12 +356,12 @@ export default function SetupForm({ setIsSaved }) {
                 [`& .${selectClasses.indicator}`]: {
                   transition: '0.2s',
                   [`&.${selectClasses.expanded}`]: {
-                    transform: 'rotate(-180deg)',
-                  },
-                },
+                    transform: 'rotate(-180deg)'
+                  }
+                }
               }}
             >
-              {!!sheetNames.length ? (
+              {!!sheetNames?.length ? (
                 sheetNames.map((sheetName) => (
                   <Option
                     key={sheetName}
@@ -408,37 +406,20 @@ export default function SetupForm({ setIsSaved }) {
         anchorOrigin={{ vertical: feedback.vertical, horizontal: feedback.horizontal }}
         onClose={(event, reason) => {
           if (reason === 'clickaway') {
-            setFeedback((prev) => ({ ...prev, open: false }));
-            return;
+            setFeedback((prev) => ({ ...prev, open: false }))
+            return
           }
-          setFeedback((prev) => ({ ...prev, open: false }));
+          setFeedback((prev) => ({ ...prev, open: false }))
         }}
       >
         {feedback.message}
       </Snackbar>
     </Box>
-  );
+  )
 }
 
-function SpanDecorator({ label }) {
-  return (
-    <FormLabel
-      sx={{
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'center',
-        height: '100%',
-      }}
-    >
-      {label}
-    </FormLabel>
-  );
+SetupForm.propTypes = {
+  setIsSaved: PropTypes.func.isRequired
 }
 
-function BtnDecorator(props) {
-  return (
-    <Button {...props} variant="soft">
-      {props.children}
-    </Button>
-  );
-}
+export default SetupForm

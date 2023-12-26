@@ -1,12 +1,12 @@
-import { Grid } from '@mui/material';
+import { Grid } from '@mui/material'
 
-import SetupForm from './SetupForm';
-import TableStripe from './Table';
-import { useState } from 'react';
+import SetupForm from './SetupForm'
+import TableStripe from './Table'
+import { useState } from 'react'
 
 export default function NewFrames() {
-  const [isSaved, setIsSaved] = useState(false);
-  const [isDownloading, setIsDownloading] = useState(false);
+  const [isSaved, setIsSaved] = useState(false)
+  const [isDownloading, setIsDownloading] = useState(false)
 
   return (
     <Grid container direction="column" spacing={3}>
@@ -21,5 +21,5 @@ export default function NewFrames() {
         />
       </Grid>
     </Grid>
-  );
+  )
 }

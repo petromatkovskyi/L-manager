@@ -1,10 +1,11 @@
-import { createBrowserRouter, RouterProvider } from 'react-router-dom';
-import Main from './components/Main';
-import ErrorPage from './components/ErrorPage';
-import NewFrames from './components/NewFrames';
-import AdjacentFrames from './components/AdjacentFrames';
-import { Provider } from 'react-redux';
-import { store } from './store';
+import { createBrowserRouter, RouterProvider } from 'react-router-dom'
+import Main from './components/Main'
+import ErrorPage from './components/ErrorPage'
+import NewFrames from './components/NewFrames'
+import AdjacentFrames from './components/AdjacentFrames'
+import { useDispatch } from 'react-redux'
+import { useEffect } from 'react'
+import { fetchTakenFrames } from './store/framesSlice'
 
 const router = createBrowserRouter([
   {
@@ -14,23 +15,26 @@ const router = createBrowserRouter([
     children: [
       {
         path: '/new-frames',
-        element: <NewFrames />,
+        element: <NewFrames />
       },
       {
         path: '/adjacent-frames',
-        element: <AdjacentFrames />,
-      },
-    ],
-  },
-]);
+        element: <AdjacentFrames />
+      }
+    ]
+  }
+])
 
 function App() {
+  const dispatch = useDispatch()
+  useEffect(() => {
+    dispatch(fetchTakenFrames())
+  }, [])
+
   return (
-    <Provider store={store}>
-      <RouterProvider router={router} />
-    </Provider>
+    <RouterProvider router={router} />
     // <RendererConfigFile />
-  );
+  )
 }
 
-export default App;
+export default App

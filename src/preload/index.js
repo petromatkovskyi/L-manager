@@ -48,5 +48,8 @@ contextBridge.exposeInMainWorld('electronApi', {
     const res = ipcRenderer.invoke('saveNewFramesInDB', data)
     return res
   },
-  getTakenFrames: async () => ipcRenderer.invoke('getTakenFrames')
+  fetchTakenFrames: async () => ipcRenderer.invoke('fetchTakenFrames'),
+
+  deleteFramesData: (id) => ipcRenderer.invoke('deleteFramesData', id),
+  isPathValid: async (path) => await ipcRenderer.invoke('isPathValid', path)
 })

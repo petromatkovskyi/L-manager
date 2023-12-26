@@ -33,7 +33,6 @@ class Frames {
 
   getFramesData() {
     try {
-      console.log(this.path)
       const fileContent = fs.readFileSync(this.path, 'utf-8')
       const framesData = JSON.parse(fileContent)
 
@@ -62,11 +61,19 @@ class Frames {
   }
 
   deleteFrames(id) {
-    const dataFrames = this.getFramesData()
+    console.log(id)
+    try {
+      const dataFrames = this.getFramesData()
+      console.log(dataFrames)
 
-    const filteredDataFrames = dataFrames.filter((frameObj) => frameObj.id !== id)
+      const filteredDataFrames = dataFrames.filter((frameObj) => frameObj.id !== id)
 
-    this.saveFrames(filteredDataFrames)
+      this.saveFrames(filteredDataFrames)
+
+      return filteredDataFrames
+    } catch (e) {
+      return e
+    }
   }
 
   saveFrames(frames) {

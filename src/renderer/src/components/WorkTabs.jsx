@@ -1,6 +1,6 @@
-import Tabs from '@mui/joy/Tabs';
-import TabList from '@mui/joy/TabList';
-import Tab, { tabClasses } from '@mui/joy/Tab';
+import Tabs from '@mui/joy/Tabs'
+import TabList from '@mui/joy/TabList'
+import Tab, { tabClasses } from '@mui/joy/Tab'
 
 export default function WorkTabs() {
   return (
@@ -14,8 +14,8 @@ export default function WorkTabs() {
           bgcolor: 'background.level1',
           [`& .${tabClasses.root}[aria-selected="true"]`]: {
             boxShadow: 'sm',
-            bgcolor: 'background.surface',
-          },
+            bgcolor: 'background.surface'
+          }
         }}
       >
         <Tab disableIndicator>Take</Tab>
@@ -27,5 +27,5 @@ export default function WorkTabs() {
         </Tab>
       </TabList>
     </Tabs>
-  );
+  )
 }

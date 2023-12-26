@@ -29,6 +29,7 @@
     "electron-updater": "^6.1.1",
     "formik": "^2.4.5",
     "googleapis": "^129.0.0",
+    "prop-types": "^15.8.1",
     "react-redux": "^9.0.4",
     "react-router-dom": "^6.21.0",
     "uuid": "^9.0.1",

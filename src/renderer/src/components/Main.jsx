@@ -1,9 +1,7 @@
-import { Grid } from '@mui/material';
-import SetupForm from './SetupForm';
-import TableStripe from './Table';
-import Header from './Header';
-import SideMenu from './SideMenu';
-import { Outlet } from 'react-router-dom';
+import { Grid } from '@mui/material'
+import { Outlet } from 'react-router-dom'
+import Header from './Header'
+import SideMenu from './SideMenu'
 
 export default function Main() {
   return (
@@ -27,5 +25,5 @@ export default function Main() {
         </Grid>
       </Grid>
     </>
-  );
+  )
 }
