@@ -1,7 +1,11 @@
+import { app } from 'electron'
 import fs from 'fs'
 import * as path from 'path'
 
-const FRAMES_PATH = path.resolve('resources/frames.json')
+const FRAMES_PATH =
+  process.env.NODE_ENV === 'development'
+    ? path.resolve('src/main/frames.json')
+    : path.join(app.getPath('userData'), 'frames.json')
 
 class Frames {
   constructor(path) {

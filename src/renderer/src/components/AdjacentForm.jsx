@@ -1,25 +1,26 @@
+import Done from '@mui/icons-material/Done'
 import InfoOutlined from '@mui/icons-material/InfoOutlined'
 import {
   Button,
-  Checkbox,
+  CircularProgress,
   FormControl,
   FormHelperText,
-  Input,
   FormLabel,
-  CircularProgress
+  Input,
+  Typography
 } from '@mui/joy'
-import { Grid, Box } from '@mui/material'
+import { Box, Grid } from '@mui/material'
 import { useFormik } from 'formik'
 import PropTypes from 'prop-types'
-import * as Yup from 'yup'
-import SpanDecorator from './shared/SpanDecorator'
 import { useEffect } from 'react'
-import Done from '@mui/icons-material/Done'
+import * as Yup from 'yup'
+import AdjacentFramesDisplay from './AdjacentFramesDisplay'
+import SpanDecorator from './shared/SpanDecorator'
 
 Yup.addMethod(Yup.string, 'isPathValid', function (errMsg) {
   return this.test('test-valid-path', errMsg, async function (value) {
     const { path, createError } = this
-    const isIdValid = await electronApi.isPathValid(value)
+    const isIdValid = await window.electronApi.isPathValid(value)
     return isIdValid || createError({ path, message: errMsg })
   })
 })
@@ -31,10 +32,10 @@ const AdjacentSchema = Yup.object().shape({
 })
 
 function AdjacentForm({ framesObj }) {
-  const { handleSubmit, values, handleChange, errors, status, setStatus, resetForm } = useFormik({
+  const { handleSubmit, values, handleChange, errors, status, setStatus, setValues } = useFormik({
     initialValues: {
-      copyFrom: framesObj.takenFrom,
-      pasteTo: framesObj.framesLocation,
+      copyFrom: '',
+      pasteTo: '',
       frameNames: []
     },
     onSubmit: onSubmit,
@@ -47,20 +48,21 @@ function AdjacentForm({ framesObj }) {
       for (const frameName of data.frameNames) {
         // ! make: add changing download status for a file
 
-        const res = await electronApi.downloadFile({
+        const res = await window.electronApi.downloadFile({
           foldersPaths: {
             searchingPath: data.copyFrom,
             destinationFolderPath: data.pasteTo
           },
           fileName: frameName
         })
-
-        console.log(frameName)
       }
 
-      electronApi.unArchive(data.pasteTo)
-
-      resetForm()
+      window.electronApi.unArchive(data.pasteTo)
+      setValues({
+        copyFrom: framesObj.takenFrom,
+        pasteTo: framesObj.framesLocation,
+        frameNames: []
+      })
     } catch (e) {
       console.error(e)
     } finally {
@@ -68,10 +70,16 @@ function AdjacentForm({ framesObj }) {
     }
   }
 
-  useEffect(() => {}, [framesObj])
+  useEffect(() => {
+    setValues({
+      copyFrom: framesObj.takenFrom,
+      pasteTo: framesObj.framesLocation,
+      frameNames: []
+    })
+  }, [framesObj])
 
   const onChoosePath = async (e) => {
-    const path = await electronApi.choosePath()
+    const path = await window.electronApi.choosePath()
     if (path) {
       const synthEvent = {
         target: {
@@ -154,56 +162,22 @@ function AdjacentForm({ framesObj }) {
         </Grid>
 
         {
-          //! with big scale might not work. Leak of space could brake structure
+          //! with big scale might not work. Leak of space may brake structure
         }
         <Grid item>
-          {framesObj.adjacentSchema.map((row, index) => {
-            return (
-              <Box
-                key={index}
-                // onClick={(e) => {
-                //   e.preventDefault()
-                // }}
-              >
-                {row.map((frameObj) => (
-                  // frameObj = {
-                  //   "frameLabel": "N-34-123-D-d-2-2-4-4",
-                  //   "selectable": false,
-                  //   "isTakenFrames": false
-                  // }
-                  <Checkbox
-                    key={frameObj.frameLabel}
-                    disableIcon
-                    disabled={!frameObj.selectable || frameObj.isTakenFrames}
-                    variant="solid"
-                    label={
-                      <>
-                        <DownloadStatusFeedback status={frameObj.downloadStatus} />
-                        {frameObj.frameLabel}
-                      </>
-                    }
-                    value={frameObj.frameLabel}
-                    name="frameNames"
-                    onChange={handleChange}
-                    sx={{ height: '60px', alignItems: 'center', px: 1 }}
-                    checked={values.frameNames.includes(frameObj.frameLabel)}
-                  />
-                ))}
-              </Box>
-            )
-          })}
-
-          <FormControl error={!!errors.frameNames}>
-            {!!errors.frameNames && (
-              <FormHelperText>
-                <InfoOutlined />
-                {errors.frameNames}
-              </FormHelperText>
-            )}
-          </FormControl>
+          <AdjacentFramesDisplay
+            framesObj={framesObj}
+            values={values}
+            handleChange={handleChange}
+            errors={errors}
+          />
         </Grid>
 
         <Grid item>
+          <Typography level="title-md" color="warning" pb={1}>
+            Copying follows the same sequence of steps as downloading, such as converting. Make sure
+            any old laz files is not in the target directory. It may result in data loss.
+          </Typography>
           <Button type="submit" endDecorator={<DownloadStatusFeedback status={status} />}>
             Copy
           </Button>
@@ -221,6 +195,10 @@ function DownloadStatusFeedback({ status }) {
   ) : (
     ''
   )
+}
+
+DownloadStatusFeedback.propTypes = {
+  status: PropTypes.string
 }
 
 AdjacentForm.propTypes = {

@@ -23,20 +23,21 @@ function TableStripe({ isSaved, isDownloading, setIsDownloading }) {
 
     try {
       // make check for block name
-      const foldersPaths = await electronApi.checkFolders(frames[0].block)
+      const foldersPaths = await window.electronApi.checkFolders(frames[0].block)
 
       if (foldersPaths.searchingPath && foldersPaths.destinationFolderPath) {
         for (const frame of frames) {
           dispatch(changeDownloadStatus({ num: frame.num, status: 'progress' }))
 
-          const res = await electronApi.downloadFile({
+          const res = await window.electronApi.downloadFile({
             foldersPaths,
             fileName: frame.section
           })
           dispatch(changeDownloadStatus({ num: frame.num, status: res ? 'done' : 'error' }))
         }
+
         // unarchive downloaded files in destination folder
-        electronApi.unArchive(foldersPaths.destinationFolderPath)
+        window.electronApi.unArchive(foldersPaths.destinationFolderPath)
 
         const dataForDB = {
           frames: frames.map((frameObj) => frameObj.section),
@@ -45,7 +46,7 @@ function TableStripe({ isSaved, isDownloading, setIsDownloading }) {
           takenFrom: foldersPaths.searchingPath
         }
 
-        const res = await electronApi.saveNewFramesInDB(dataForDB)
+        const res = await window.electronApi.saveNewFramesInDB(dataForDB)
 
         console.log(res)
       }

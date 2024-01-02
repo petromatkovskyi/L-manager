@@ -26,8 +26,8 @@ export default function SideMenu() {
           </ListSubheader>
         }
       >
-        <Link to="new-frames">
-          <ListItemButton selected={pathname === '/new-frames'}>
+        <Link to="/">
+          <ListItemButton selected={pathname === '/'}>
             <ListItemIcon sx={{ minWidth: '40px' }}>
               <InboxIcon />
             </ListItemIcon>
@@ -35,8 +35,6 @@ export default function SideMenu() {
           </ListItemButton>
         </Link>
 
-        {/* <Collapse in={open} timeout="auto" unmountOnExit> */}
-        {/* <List component="div"> */}
         <Link to="adjacent-frames">
           <ListItemButton selected={pathname === '/adjacent-frames'}>
             <ListItemIcon sx={{ minWidth: '40px' }}>
@@ -45,8 +43,6 @@ export default function SideMenu() {
             <ListItemText primary="Adjacent frames" />
           </ListItemButton>
         </Link>
-        {/* </List> */}
-        {/* </Collapse> */}
       </List>
 
       <List

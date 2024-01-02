@@ -1,5 +1,5 @@
-import { app, BrowserWindow, ipcMain, dialog } from 'electron'
-// import express from 'express';
+import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron'
+import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import fs from 'fs'
 import { google } from 'googleapis'
 import { exec } from 'child_process'
@@ -8,69 +8,74 @@ import { v4 as uuidv4 } from 'uuid'
 
 import { frames } from './Frames'
 import operators from './OPERATORS'
-
-// const appExpress = express();
+import credentials from './cred/credentials.js'
 
 const SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 
-// const { operators } = require(path.join(__dirname + '/OPERATORS.json'));
-// const TOKEN_PATH = path.join(__dirname + '/token.json');
-// const SETUP_PATH = path.join(__dirname + '../src/main/setup.json');
-// const SETUP_PATH = path.join(app.getPath('userData'), 'setup.json');
-// const TOKEN_PATH = path.join(app.getPath('userData'), 'token.json');
-
-// const { operators } = require(path.resolve('src/main/OPERATORS.json'))
-
-const SETUP_PATH = path.resolve('resources/setup.json')
-const TOKEN_PATH = path.resolve('resources/token.json')
-const CREDENTIALS_PATH = path.resolve('resources/cred/credentials.json')
-
-const credentials = require(CREDENTIALS_PATH)
+const SETUP_PATH =
+  process.env.NODE_ENV === 'development'
+    ? path.resolve('src/main/setup.json')
+    : path.join(app.getPath('userData'), 'setup.json')
+const TOKEN_PATH =
+  process.env.NODE_ENV === 'development'
+    ? path.resolve('src/main/token.json')
+    : path.join(app.getPath('userData'), 'token.json')
 
 const { client_secret, client_id, redirect_uris } = credentials.installed
 
 const oAuth2Client = new google.auth.OAuth2(client_id, client_secret, redirect_uris)
 
-// const db = new sqlite3.Database(dbPath);
-
 let mainWindow
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 1000,
+    width: 1200,
     height: 1000,
+    show: false,
+    autoHideMenuBar: true,
+    ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
-      preload: path.join(__dirname, '../preload/index.js')
+      preload: path.join(__dirname, '../preload/index.js'),
+      sandbox: false
     }
-    // autoHideMenuBar: true,
   })
 
-  // Vite dev server URL
-  mainWindow.webContents.openDevTools()
-  mainWindow.loadURL('http://localhost:5173')
+  // mainWindow.webContents.openDevTools()
 
-  mainWindow.on('closed', () => (mainWindow = null))
+  mainWindow.on('ready-to-show', () => {
+    mainWindow.show()
+  })
+
+  mainWindow.webContents.setWindowOpenHandler((details) => {
+    shell.openExternal(details.url)
+    return { action: 'deny' }
+  })
+
+  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
+    mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
+  } else {
+    mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'))
+  }
 }
 
-app.on('ready', async () => {
-  //token boolean
+app.whenReady().then(async () => {
+  electronApp.setAppUserModelId('com.electron')
 
-  const token = await checkAccessToken()
+  app.on('browser-window-created', (_, window) => {
+    optimizer.watchWindowShortcuts(window)
+  })
 
-  //! make some magic with redirection and choosing of path
+  await checkAccessToken()
 
   createWindow()
+  app.on('activate', function () {
+    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+  })
 })
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit()
-  }
-})
-
-app.on('activate', () => {
-  if (mainWindow == null) {
-    createWindow()
   }
 })
 
@@ -87,6 +92,11 @@ ipcMain.handle('unArchive', unArchive)
 ipcMain.handle('fetchTakenFrames', () => frames.getFramesData())
 ipcMain.handle('deleteFramesData', (_, id) => frames.deleteFrames(id))
 ipcMain.handle('isPathValid', isPathValid)
+ipcMain.handle('getCurrLocation', () => {
+  return is.dev && process.env['ELECTRON_RENDERER_URL']
+    ? process.env['ELECTRON_RENDERER_URL']
+    : path.join(__dirname, '../renderer/index.html')
+})
 
 async function authorize() {
   return new Promise((res) => {
@@ -170,6 +180,9 @@ async function refreshAccessToken(refreshToken) {
     oAuth2Client.refreshAccessToken((err, newToken) => {
       if (err) {
         console.log(err.message)
+        fs.writeFileSync(TOKEN_PATH, JSON.stringify({}))
+        oAuth2Client.setCredentials({})
+
         reject(false)
       } else {
         oAuth2Client.setCredentials(newToken)
@@ -363,7 +376,7 @@ async function findNewFrames() {
   }
 }
 
-function createFramesScheme(files) {
+function createSchemeNType(files) {
   const prefixes = files.reduce((acc, curr) => {
     const pref = curr.match(/([A-Z]){1}-\d{1,3}-\d{1,3}/)
     if (!acc.includes(pref[0])) acc.push(pref[0])
@@ -506,11 +519,33 @@ function createFramesScheme(files) {
     }
   }
 
-  const newMap = configuredLists.map((row) =>
+  const availableNamesScheme = configuredLists.map((row) =>
     row.map((listName) => (files.includes(listName) ? listName : null))
   )
 
-  return trimSchema(newMap)
+  return trimSchema(availableNamesScheme)
+}
+
+function createSchemeNAType(files) {
+  const limit = findLimit(files)
+  const rowIds = getRowIds(limit)
+  const schema = Array.from(rowIds, (id) => {
+    const arr = new Array(limit.col.max - limit.col.min + 1).fill(null)
+
+    const mappedArr = arr.map((_, index) => {
+      const ID = `${+limit.col.min + index}${id}`
+      return ID
+    })
+    return mappedArr
+  })
+
+  const availableNamesScheme = schema.map((row) =>
+    row.map((name) => (files.includes(name) ? name : null))
+  )
+
+  const trimmedSchema = trimSchema(availableNamesScheme)
+
+  return trimmedSchema
 }
 
 function trimSchema(schema) {
@@ -575,6 +610,101 @@ function trimAdjacentSchema(schema, frames, adjacent) {
   return trimmedSchema
 }
 
+function findLimit(fileNamesArr) {
+  const limit = {
+    // alfa
+    row: {
+      min: '',
+      max: ''
+    },
+    // num
+    col: {
+      min: '',
+      max: ''
+    }
+  }
+  for (const item of fileNamesArr) {
+    const match = item.match(/^([0-9]{1,})([A-Za-z]{1,})$/)
+    const col = match[1] // num
+    const row = match[2] // alfa
+
+    if (!limit.row.min) {
+      limit.row.min = row
+      limit.row.max = row
+
+      limit.col.min = col
+      limit.col.max = col
+
+      continue
+    }
+
+    limit.row.min =
+      Number(
+        limit.row.min.split('').reduce((sum, curr) => sum + curr.charCodeAt().toString(), '')
+      ) > row.split('').reduce((sum, curr) => sum + curr.charCodeAt().toString(), '')
+        ? row
+        : limit.row.min
+    limit.row.max =
+      Number(
+        limit.row.max.split('').reduce((sum, curr) => sum + curr.charCodeAt().toString(), '')
+      ) < Number(row.split('').reduce((sum, curr) => sum + curr.charCodeAt().toString(), ''))
+        ? row
+        : limit.row.max
+
+    limit.col.min = limit.col.min > col ? col : limit.col.min
+    limit.col.max = limit.col.max < col ? col : limit.col.max
+  }
+
+  return limit
+}
+
+function getRowIds(limit) {
+  const { min, max } = limit.row
+
+  const A = 'A'
+  const Z = 'Z'
+
+  const codeA = A.charCodeAt(0)
+  const codeZ = Z.charCodeAt(0)
+  const minCode = min.split('').map((item) => item.charCodeAt())
+  const maxCode = max.split('').map((item) => item.charCodeAt())
+
+  const combinations = []
+
+  const currCode = [] //[65, 66]
+
+  while (
+    Number(currCode.reduce((sum, curr) => sum + curr.toString(), '')) <
+      Number(maxCode.reduce((sum, curr) => sum + curr.toString(), '')) &&
+    currCode.length <= max.length
+  ) {
+    if (!currCode.length) {
+      currCode.push(...minCode)
+      combinations.push([...currCode])
+    }
+
+    if (currCode.length) {
+      for (let i = currCode.length - 1; i >= 0; i--) {
+        if (currCode[i] < codeZ) {
+          currCode[i] += 1
+          break
+        }
+
+        if (currCode[i] === codeZ) {
+          currCode[i] = codeA
+          i === 0 ? currCode.unshift(codeA) : (currCode[i - 1] += 1)
+          break
+        }
+      }
+    }
+    combinations.push([...currCode])
+  }
+
+  const rowIds = combinations.map((combCode) => String.fromCharCode(...combCode))
+
+  return rowIds
+}
+
 async function downloadFile(req, data) {
   const {
     foldersPaths: { searchingPath, destinationFolderPath },
@@ -613,7 +743,11 @@ async function downloadFile(req, data) {
 
 async function unArchive(_, folderPath) {
   try {
-    const sourceFilesFolder = path.resolve('resources/serviceFiles')
+    const sourceFilesFolder =
+      is.dev && process.env['ELECTRON_RENDERER_URL']
+        ? path.resolve('resources/serviceFiles')
+        : path.join(__dirname, '../../../app.asar.unpacked//resources/serviceFiles')
+
     const targetFilesFolder = folderPath
     const batFilePath = path.join(targetFilesFolder, 'laz-searcher_laz_to_las.bat')
     console.log(sourceFilesFolder, targetFilesFolder)
@@ -754,16 +888,23 @@ async function saveNewFramesInDB(_, data) {
   //! place where should make checking of file name and then decide how to make schema and save data
 
   data.setup = getSetups()
-  data.schema = createFramesScheme(await getAllBlocksFrames(data.block))
+  data.blockFrames = await getAllBlocksFrames(data.block)
+  data.nameScheme = analyzeFileName(data.frames[0])
+  data.schemaAble = data.nameScheme.name === 'N' || data.nameScheme.name === 'na'
+
+  data.schema =
+    data.nameScheme.name === 'N'
+      ? createSchemeNType(data.blockFrames)
+      : data.nameScheme.name === 'na'
+        ? createSchemeNAType(data.blockFrames)
+        : ''
+
   data.adjacentFrames = getAdjacentFrames(data.frames, data.schema)
   data.adjacentSchema = trimAdjacentSchema(data.schema, data.frames, data.adjacentFrames)
+
   data.id = uuidv4()
 
   frames.addNewFrames(data)
-
-  // await insertDataIntoFramesTable(data);
-  // const dbData = await getAllFrames();
-
   return data
 }
 
@@ -830,46 +971,43 @@ function isPathValid(_, path) {
 
 function analyzeFileName(fileName) {
   let result = {
-    row: '',
-    col: '',
-    schemaOfName: '',
+    name: '',
     divider: ''
   }
 
   // Check: 'a_1', 'a_2', 'b_1'
-  let match = fileName.match(/^([a-z])_([0-9]+)$/)
+  let match = fileName.match(/^([A-Za-z]{1,})_([0-9]{1,})$/)
   if (match) {
-    result.row = match[1]
-    result.col = match[2]
-    result.schemaOfName = 'a_n'
+    result.name = 'a_n'
     result.divider = '_'
     return result
   }
 
   // Check: '1a', '2a', '1b'
-  match = fileName.match(/^([0-9]+)([a-z])$/)
+  match = fileName.match(/^([0-9]{1,})([A-Za-z]{1,})$/)
   if (match) {
-    result.row = match[2]
-    result.col = match[1]
-    result.schemaOfName = 'na'
+    result.name = 'na'
     result.divider = ''
     return result
   }
 
   // Check: 'a1', 'a2', 'b1'
-  match = fileName.match(/^([a-z])([0-9]+)$/)
+  match = fileName.match(/^([A-Za-z]{1,})([0-9]{1,})$/)
   if (match) {
-    result.row = match[1]
-    result.col = match[2]
-    result.schemaOfName = 'an'
+    result.name = 'an'
     result.divider = ''
     return result
   }
 
-  result.schemaOfName = 'Unknown'
+  // Check: 'N-34-124-C-c-1-3-1-1'
+  let match4 = fileName.match(
+    /^[A-Z]-([0-9]{1,3})-([0-9]{1,3})-([A-Z])-([a-z])-([0-9])-([0-9])-([0-9])-([0-9])$/
+  )
+  if (match4) {
+    result.name = 'N'
+    return result
+  }
+
+  result.name = 'Unknown'
   return result
 }
-
-//! npm install better-sqlite3-with-prebuilds
-// python error
-//node-gyp could help

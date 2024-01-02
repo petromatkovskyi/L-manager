@@ -1,7 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 
 contextBridge.exposeInMainWorld('electronApi', {
-  title: 'The Laz searcher',
+  title: 'L-Manager',
   auth: async () => {
     const res = await ipcRenderer.invoke('auth')
     return res
@@ -11,7 +11,7 @@ contextBridge.exposeInMainWorld('electronApi', {
     return res
   },
   checkFolders: async (block) => {
-    //// data = {block: 2728, fileNames:['M-34-54-C-b-1-2-3-3', 'M-34-54-C-b-1-2-3-4']}
+    // data = {block: 2728, fileNames:['M-34-54-C-b-1-2-3-3', 'M-34-54-C-b-1-2-3-4']}
     //block = 2728
 
     const res = await ipcRenderer.invoke('checkFolders', block)
@@ -45,11 +45,15 @@ contextBridge.exposeInMainWorld('electronApi', {
     return isIdValid
   },
   saveNewFramesInDB: (data) => {
+    console.log('currLocation preload', '2')
+
     const res = ipcRenderer.invoke('saveNewFramesInDB', data)
     return res
   },
   fetchTakenFrames: async () => ipcRenderer.invoke('fetchTakenFrames'),
-
   deleteFramesData: (id) => ipcRenderer.invoke('deleteFramesData', id),
-  isPathValid: async (path) => await ipcRenderer.invoke('isPathValid', path)
+  isPathValid: async (path) => await ipcRenderer.invoke('isPathValid', path),
+
+  currLocation: (callback) => ipcRenderer.on('currLocation', callback),
+  getCurrLocation: async () => await ipcRenderer.invoke('getCurrLocation')
 })

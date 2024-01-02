@@ -27,7 +27,7 @@ import SpanDecorator from './shared/SpanDecorator'
 Yup.addMethod(Yup.string, 'checkSpreadsheetId', function (errMsg) {
   return this.test('test-valid-spreadsheet-id', errMsg, async function (value) {
     const { path, createError } = this
-    const isIdValid = await electronApi.checkSpreadSheetId(value)
+    const isIdValid = await window.electronApi.checkSpreadSheetId(value)
     return isIdValid || createError({ path, message: errMsg })
   })
 })
@@ -81,7 +81,7 @@ function SetupForm({ setIsSaved }) {
   }
 
   const onChoosePath = async (e) => {
-    const path = await electronApi.choosePath()
+    const path = await window.electronApi.choosePath()
     if (path) {
       const synthEvent = {
         target: {
@@ -95,10 +95,10 @@ function SetupForm({ setIsSaved }) {
 
   const getSheetNames = async (e, id) => {
     if (values?.spreadsheetId || id) {
-      const sheetNamesRes = await electronApi.getSheetNames({
+      const sheetNamesRes = await window.electronApi.getSheetNames({
         spreadsheetId: id || values?.spreadsheetId
       })
-      if (!!sheetNamesRes?.length) {
+      if (sheetNamesRes?.length) {
         setSheetNames(sheetNamesRes)
         return
       }
@@ -126,7 +126,7 @@ function SetupForm({ setIsSaved }) {
   }
 
   async function onSubmitSetups(setups) {
-    const res = await electronApi.saveSetups(setups)
+    const res = await window.electronApi.saveSetups(setups)
     setFeedback((prev) => ({
       ...prev,
       color: res.success ? 'success' : 'danger',
@@ -361,7 +361,7 @@ function SetupForm({ setIsSaved }) {
                 }
               }}
             >
-              {!!sheetNames?.length ? (
+              {sheetNames?.length ? (
                 sheetNames.map((sheetName) => (
                   <Option
                     key={sheetName}

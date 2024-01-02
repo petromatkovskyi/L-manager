@@ -3,3 +3,4 @@ dist
 out
 cred
 *.log*
+token.json

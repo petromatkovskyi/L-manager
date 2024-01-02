@@ -2,7 +2,7 @@
   "name": "l-manager",
   "productName": "L-manager",
   "version": "1.0.0",
-  "description": "An Electron application with React",
+  "description": "An Electron application which simplify work on Lidar project.",
   "main": "./out/main/index.js",
   "author": "Petro Matkovskyi",
   "homepage": "https://www.electronjs.org",
@@ -15,7 +15,8 @@
     "postinstall": "electron-builder install-app-deps",
     "build:win": "npm run build && electron-builder --win --config",
     "build:mac": "npm run build && electron-builder --mac --config",
-    "build:linux": "npm run build && electron-builder --linux --config"
+    "build:linux": "npm run build && electron-builder --linux --config",
+    "dist": "electron-builder"
   },
   "dependencies": {
     "@electron-toolkit/preload": "^2.0.0",
@@ -26,7 +27,7 @@
     "@mui/joy": "^5.0.0-beta.19",
     "@mui/material": "^5.15.1",
     "@reduxjs/toolkit": "^2.0.1",
-    "electron-updater": "^6.1.1",
+    "electron-updater": "^6.1.7",
     "formik": "^2.4.5",
     "googleapis": "^129.0.0",
     "prop-types": "^15.8.1",

@@ -1,16 +1,17 @@
 import DeleteForever from '@mui/icons-material/DeleteForever'
 import KeyboardArrowDown from '@mui/icons-material/KeyboardArrowDown'
-import { Box, Button, Checkbox } from '@mui/joy'
+import { Button, Typography } from '@mui/joy'
 import { Grid } from '@mui/material'
 import { useSelector } from 'react-redux'
 
-import { FormControl, Option, Select, Input } from '@mui/joy'
+import { FormControl, Option, Select } from '@mui/joy'
 import { selectClasses } from '@mui/joy/Select'
 import { useEffect, useState } from 'react'
-import ModalConfirmation from './ModalConfirmation'
-import { framesSelector } from '../store/framesSlice'
-import SpanDecorator from './shared/SpanDecorator'
+import { useDispatch } from 'react-redux'
+import { framesSelector, setTakenFrames } from '../store/framesSlice'
 import AdjacentForm from './AdjacentForm'
+import ModalConfirmation from './shared/ModalConfirmation'
+import SpanDecorator from './shared/SpanDecorator'
 
 export default function AdjacentFrames() {
   const { takenFrames } = useSelector(framesSelector)
@@ -18,9 +19,9 @@ export default function AdjacentFrames() {
   const [selected, setSelected] = useState('')
   const [framesObj, setFramesObj] = useState(null)
   const [confirmData, setConfirmData] = useState(null)
+  const dispatch = useDispatch()
 
   useEffect(() => {
-    // console.log(takenFrames)
     setDataForSelect(
       takenFrames.map((frame) => {
         return { id: frame.id, label: frame.framesLocation.split('\\').slice(-2).join('-') }
@@ -39,12 +40,24 @@ export default function AdjacentFrames() {
       row.map((item) => ({ ...item, downloadStatus: 'idle' }))
     )
 
-    // console.log(selectedFramesObj.adjacentSchema)
     setFramesObj(selectedFramesObj)
   }, [selected])
 
   const onSelectChange = (_, newValue) => {
     setSelected(newValue)
+  }
+
+  const deleteFramesData = async (eliminate) => {
+    if (!eliminate) {
+      setConfirmData(null)
+      return
+    }
+
+    const res = await window.electronApi.deleteFramesData(confirmData.id)
+
+    if (Array.isArray(res)) dispatch(setTakenFrames(res))
+
+    setConfirmData(null)
   }
 
   return (
@@ -83,7 +96,7 @@ export default function AdjacentFrames() {
                   <Button
                     onClick={(e) => {
                       e.preventDefault()
-
+                      e.stopPropagation()
                       setConfirmData(item)
                     }}
                     variant="plain"
@@ -101,20 +114,16 @@ export default function AdjacentFrames() {
       </FormControl>
 
       {!!framesObj && <AdjacentForm framesObj={framesObj} />}
-      <ModalConfirmation confirmData={confirmData} setConfirmData={setConfirmData} />
+      <ModalConfirmation
+        callback={deleteFramesData}
+        label={
+          confirmData?.label && (
+            <Typography>
+              Are you sure you want to delete all data of <b>{confirmData?.label}</b>?
+            </Typography>
+          )
+        }
+      />
     </>
   )
-
-  // return (
-  //   <Grid container direction="column" spacing={2}>
-  //     <Grid item>
-  //       <AdjacentForm frames={frames} />
-  //     </Grid>
-  //     <Grid item>
-  //       <AdjacentFramesSelect />
-  //     </Grid>
-  //   </Grid>
-  // );
 }
-
-// make functionality for processing selected frames and downloading adjacent frames

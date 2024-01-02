@@ -57,7 +57,7 @@ export const fetchNewFrames = () => async (dispatch) => {
 
 export const fetchTakenFrames = () => async (dispatch) => {
   const takenFrames = await electronApi.fetchTakenFrames()
-  console.log(takenFrames)
+  // console.log(takenFrames)
   if (Array.isArray(takenFrames)) {
     dispatch(setTakenFrames(takenFrames))
   }
