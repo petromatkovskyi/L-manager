@@ -1,67 +1,66 @@
 import InboxIcon from '@mui/icons-material/MoveToInbox'
 import StarBorder from '@mui/icons-material/StarBorder'
-import {
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  ListSubheader,
-  Box
-} from '@mui/material'
+import { List, ListItem, ListItemButton, ListItemDecorator, ListSubheader } from '@mui/joy'
 import { Link, useLocation } from 'react-router-dom'
 
 export default function SideMenu() {
   let { pathname } = useLocation()
 
   return (
-    <Box>
-      <List
-        sx={{ width: '100%' }}
-        component="nav"
-        aria-labelledby="nested-list-subheader"
-        subheader={
-          <ListSubheader component="div" id="nested-list-subheader">
-            Take Frames
-          </ListSubheader>
+    <List
+      sx={{
+        '--List-padding': 0,
+        '& [role="button"]': {
+          borderRadius: '0 20px 20px 0'
         }
-      >
-        <Link to="/">
-          <ListItemButton selected={pathname === '/'}>
-            <ListItemIcon sx={{ minWidth: '40px' }}>
+      }}
+      // component="nav"
+      aria-labelledby="nested-list-subheader"
+      subheader={
+        <ListSubheader component="div" id="nested-list-subheader">
+          Take Frames
+        </ListSubheader>
+      }
+    >
+      <Link to="/">
+        <ListItem>
+          <ListItemButton
+            selected={pathname === '/'}
+            color={pathname === '/' ? 'primary' : undefined}
+          >
+            <ListItemDecorator sx={{ minWidth: '40px' }}>
               <InboxIcon />
-            </ListItemIcon>
-            <ListItemText primary="New frames" />
+            </ListItemDecorator>
+            Take frames
           </ListItemButton>
-        </Link>
+        </ListItem>
+      </Link>
 
-        <Link to="adjacent-frames">
-          <ListItemButton selected={pathname === '/adjacent-frames'}>
-            <ListItemIcon sx={{ minWidth: '40px' }}>
+      <Link to="adjacent-frames">
+        <ListItem>
+          <ListItemButton
+            selected={pathname === '/adjacent-frames'}
+            color={pathname === '/adjacent-frames' ? 'primary' : undefined}
+          >
+            <ListItemDecorator sx={{ minWidth: '40px' }}>
               <StarBorder />
-            </ListItemIcon>
-            <ListItemText primary="Adjacent frames" />
+            </ListItemDecorator>
+            Adjacent frames
           </ListItemButton>
-        </Link>
-      </List>
+        </ListItem>
+      </Link>
 
-      <List
-        sx={{ width: '100%' }}
-        component="nav"
-        aria-labelledby="nested-list-subheader"
-        subheader={
-          <ListSubheader component="div" id="nested-list-subheader">
-            Nested List Items
-          </ListSubheader>
-        }
-      >
-        <ListItem>
-          <ListItemButton>Submit</ListItemButton>
-        </ListItem>
-        <ListItem>
-          <ListItemButton>Table</ListItemButton>
-        </ListItem>
-      </List>
-    </Box>
+      <ListItem nested>
+        <ListSubheader>Soon...</ListSubheader>
+        <List component="nav" aria-labelledby="nested-list-subheader">
+          <ListItem>
+            <ListItemButton>Submit frames</ListItemButton>
+          </ListItem>
+          <ListItem>
+            <ListItemButton>Table*</ListItemButton>
+          </ListItem>
+        </List>
+      </ListItem>
+    </List>
   )
 }

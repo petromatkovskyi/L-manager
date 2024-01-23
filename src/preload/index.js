@@ -45,8 +45,6 @@ contextBridge.exposeInMainWorld('electronApi', {
     return isIdValid
   },
   saveNewFramesInDB: (data) => {
-    console.log('currLocation preload', '2')
-
     const res = ipcRenderer.invoke('saveNewFramesInDB', data)
     return res
   },

@@ -66,11 +66,10 @@ function AdjacentFramesDisplay({ framesObj, values, handleChange, errors }) {
           {framesObj.adjacentSchema.map((row, index) => {
             return (
               <Box
+                display="grid"
                 key={index}
                 sx={{ mb: 1 }}
-                // onClick={(e) => {
-                //   e.preventDefault()
-                // }}
+                gridTemplateColumns={`repeat(${row.length}, 1fr)`}
               >
                 {row.map((frameObj) => (
                   // frameObj = {
@@ -79,10 +78,9 @@ function AdjacentFramesDisplay({ framesObj, values, handleChange, errors }) {
                   //   "isTakenFrames": false
                   // }
                   <Checkbox
-                    key={frameObj.frameLabel}
+                    key={frameObj.id || frameObj.frameLabel}
                     disableIcon
                     disabled={!frameObj.selectable || frameObj.isTakenFrames}
-                    // variant="solid"
                     variant={values.frameNames.includes(frameObj.frameLabel) ? 'soft' : 'outlined'}
                     label={
                       <Typography
@@ -91,20 +89,23 @@ function AdjacentFramesDisplay({ framesObj, values, handleChange, errors }) {
                           !frameObj.selectable || frameObj.isTakenFrames ? 'neutral.200' : 'primary'
                         }
                       >
-                        {frameObj.frameLabel}
+                        {frameObj.frameLabel ? frameObj.frameLabel : ''}
                       </Typography>
                     }
-                    value={frameObj.frameLabel}
+                    value={frameObj.frameLabel ? frameObj.frameLabel : ''}
                     name="frameNames"
                     onChange={handleChange}
                     sx={{
-                      // fontSize: { xs: '10px', md: '20px' },
                       height: '60px',
                       alignItems: 'center',
                       px: 1,
                       mr: 1,
-                      backgroundColor:
-                        !frameObj.selectable || frameObj.isTakenFrames ? 'neutral.100' : ''
+                      backgroundColor: frameObj.isTakenFrames
+                        ? 'warning.100'
+                        : !frameObj.selectable
+                          ? 'neutral.100'
+                          : '',
+                      textAlign: 'center'
                     }}
                     checked={values.frameNames.includes(frameObj.frameLabel)}
                     slotProps={{
@@ -189,9 +190,10 @@ AdjacentFramesDisplay.propTypes = {
     adjacentSchema: PropTypes.arrayOf(
       PropTypes.arrayOf(
         PropTypes.shape({
-          frameLabel: PropTypes.string.isRequired,
+          frameLabel: PropTypes.string,
           isTakenFrames: PropTypes.bool.isRequired,
-          selectable: PropTypes.bool.isRequired
+          selectable: PropTypes.bool.isRequired,
+          id: PropTypes.string
         })
       )
     ),

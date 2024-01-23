@@ -48,7 +48,7 @@ function AdjacentForm({ framesObj }) {
       for (const frameName of data.frameNames) {
         // ! make: add changing download status for a file
 
-        const res = await window.electronApi.downloadFile({
+        await window.electronApi.downloadFile({
           foldersPaths: {
             searchingPath: data.copyFrom,
             destinationFolderPath: data.pasteTo
@@ -207,9 +207,10 @@ AdjacentForm.propTypes = {
     adjacentSchema: PropTypes.arrayOf(
       PropTypes.arrayOf(
         PropTypes.shape({
-          frameLabel: PropTypes.string.isRequired,
+          frameLabel: PropTypes.string,
           isTakenFrames: PropTypes.bool.isRequired,
-          selectable: PropTypes.bool.isRequired
+          selectable: PropTypes.bool.isRequired,
+          id: PropTypes.string
         })
       )
     ),

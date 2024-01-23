@@ -1,6 +1,6 @@
 # l-manager
 
-The main reason for creating the program is to simplify work on the Lidar project.
+The main reason for creating the program is to automatize work on the Lidar project.
 The app can help the user find new file names in a Google Spreadsheet. By setting the URLs of the project directory on the server and the target directory on the local machine, the user can very quickly and properly copy the files and make them ready for use by converting the .laz type to the .las type that MicroStation requires.
 When processing files on MicroStation, the user may encounter the need to view adjacent files.
 Thus, after downloading new files, the program prepares and saves the data so that the user can download neighboring files. The program saves the user from searching for the file name in the directory, copying, converting manually.

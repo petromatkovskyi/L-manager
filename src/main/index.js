@@ -26,10 +26,11 @@ const { client_secret, client_id, redirect_uris } = credentials.installed
 const oAuth2Client = new google.auth.OAuth2(client_id, client_secret, redirect_uris)
 
 let mainWindow
+let authWindow
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 1200,
+    width: 1400,
     height: 1000,
     show: false,
     autoHideMenuBar: true,
@@ -39,8 +40,6 @@ function createWindow() {
       sandbox: false
     }
   })
-
-  // mainWindow.webContents.openDevTools()
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
@@ -53,6 +52,7 @@ function createWindow() {
 
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
+    mainWindow.webContents.openDevTools()
   } else {
     mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'))
   }
@@ -61,9 +61,9 @@ function createWindow() {
 app.whenReady().then(async () => {
   electronApp.setAppUserModelId('com.electron')
 
-  app.on('browser-window-created', (_, window) => {
-    optimizer.watchWindowShortcuts(window)
-  })
+  // app.on('browser-window-created', (_, window) => {
+  //   optimizer.watchWindowShortcuts(window)
+  // })
 
   await checkAccessToken()
 
@@ -84,7 +84,7 @@ ipcMain.handle('choosePath', choosePath)
 ipcMain.handle('getSheetNames', getSheetNames)
 ipcMain.handle('checkSpreadSheetId', checkSpreadSheetId)
 ipcMain.handle('saveSetups', saveSetups)
-ipcMain.handle('findNewFrames', findNewFrames)
+ipcMain.handle('findNewFrames', findFrames)
 ipcMain.handle('checkFolders', checkFolders)
 ipcMain.handle('saveNewFramesInDB', saveNewFramesInDB)
 ipcMain.handle('downloadFile', downloadFile)
@@ -100,21 +100,34 @@ ipcMain.handle('getCurrLocation', () => {
 
 async function authorize() {
   return new Promise((res) => {
+    mainWindow.setEnabled(false)
+
     const authUrl = oAuth2Client.generateAuthUrl({
       access_type: 'offline',
       scope: SCOPES,
       prompt: 'select_account '
     })
 
-    // console.log('authUrl', authUrl);
+    if (authWindow) {
+      authWindow.focus()
+      return
+    }
 
-    const authWindow = new BrowserWindow({
+    authWindow = new BrowserWindow({
       width: 1000,
       height: 800,
+      autoHideMenuBar: true,
       webPreferences: {
         nodeIntegration: true,
-        contextIsolation: false
+        contextIsolation: false,
+        sandbox: false
       }
+    })
+
+    authWindow.on('closed', () => {
+      authWindow = null
+      mainWindow.setEnabled(true)
+      mainWindow.focus()
     })
 
     authWindow.loadURL(authUrl)
@@ -136,8 +149,6 @@ async function authorize() {
           })
 
           authWindow.close()
-
-          // mainWindow.loadURL(`http://localhost:3000/form`);
           res()
         })
       }
@@ -197,7 +208,6 @@ async function refreshAccessToken(refreshToken) {
 function getSetups() {
   try {
     const data = fs.readFileSync(SETUP_PATH, 'utf8')
-    // console.log(data);
     if (data) {
       const jsonData = JSON.parse(data)
       return jsonData
@@ -209,7 +219,7 @@ function getSetups() {
   }
 }
 
-function saveSetups(req, setups) {
+function saveSetups(_, setups) {
   const {
     pathType,
     searchingPath,
@@ -254,7 +264,9 @@ function saveSetups(req, setups) {
 
 async function choosePath() {
   try {
-    const result = await dialog.showOpenDialog({
+    // mainWindow.setEnabled(false)
+
+    const result = await dialog.showOpenDialog(mainWindow, {
       properties: ['openDirectory'],
       title: 'Choose directory',
       defaultPath: '/',
@@ -272,10 +284,13 @@ async function choosePath() {
   } catch (err) {
     console.error(err)
     return null
+  } finally {
+    // mainWindow.setEnabled(true)
+    // mainWindow.focus()
   }
 }
 
-async function getSheetNames(req, data) {
+async function getSheetNames(_, data) {
   const auth = oAuth2Client
 
   await checkAccessToken(auth.credentials)
@@ -303,7 +318,7 @@ async function getSheetNames(req, data) {
   }
 }
 
-async function checkSpreadSheetId(req, id) {
+async function checkSpreadSheetId(_, id) {
   await checkAccessToken(oAuth2Client.credentials)
 
   if (!id) {
@@ -324,7 +339,7 @@ async function checkSpreadSheetId(req, id) {
   }
 }
 
-async function findNewFrames() {
+async function findFrames() {
   const auth = oAuth2Client
 
   await checkAccessToken(auth.credentials)
@@ -345,34 +360,41 @@ async function findNewFrames() {
 
     const values = response.data.values
     if (!values || values.length === 0) {
-      throw new Error('У таблиці немає даних.')
+      throw new Error('There is not data in table. Please, check spreadsheet link')
     }
 
     const results = []
     for (let i = 0; i < values.length; i++) {
       const operatorCell = values[i][4]
+      if (operatorCell && operatorCell.includes(operatorName) && values[i][3]) {
+        const rowNumber = i + 1
+        const block = values[i][1] // Column B
+        const part = values[i][2] // Column C
+        const section = values[i][3] // Column D
+        const operator = values[i][4] // Column E
+        const done = values[i][6] // Column G
+        const left = values[i][7] // Column H
+        const check = values[i][9] // Column J
 
-      const rowNumber = i + 1
-      const block = values[i][1] // Column B
-      const section = values[i][3] // Column D
-      const operator = values[i][4] // Column E
-      const done = values[i][6] // Column G
-      const check = values[i][9] // Column J
-
-      if (
-        operatorCell &&
-        operatorCell.includes(operatorName) &&
-        done === '0,000' &&
-        (check === undefined || !check?.match(DATE_REG_EX))
-      ) {
-        results.push({ num: rowNumber, block, section, operator, done, check })
+        results.push({ num: rowNumber, block, section, operator, done, check, left, part })
       }
+
+      // if (
+      //   operatorCell &&
+      //   operatorCell.includes(operatorName) &&
+      //   done === '0,000' &&
+      //   (check === undefined || !check?.match(DATE_REG_EX))
+      // ) {
+      //   results.push({ num: rowNumber, block, section, operator, done, check, total, left })
+      // }
     }
 
-    return results
+    return results.length
+      ? results
+      : 'There is not any new frames. Please, connect with your manager'
   } catch (error) {
     console.error(`Error getting data from Google Sheets: ${error.message}`)
-    throw error
+    return error.message
   }
 }
 
@@ -527,7 +549,8 @@ function createSchemeNType(files) {
 }
 
 function createSchemeNAType(files) {
-  const limit = findLimit(files)
+  const nameRegex = /^([A-Za-z]{1,})_([0-9]{1,})$/
+  const limit = findLimit(files, nameRegex, true)
   const rowIds = getRowIds(limit)
   const schema = Array.from(rowIds, (id) => {
     const arr = new Array(limit.col.max - limit.col.min + 1).fill(null)
@@ -546,6 +569,35 @@ function createSchemeNAType(files) {
   const trimmedSchema = trimSchema(availableNamesScheme)
 
   return trimmedSchema
+}
+//! check naming for validity
+function createSchemeA_NType(files) {
+  const nameRegex = /^([A-Za-z]{1,})_([0-9]{1,})$/
+  const limit = findLimit(files, nameRegex, true)
+  const rowIds = getRowIds(limit)
+  console.log({ rowIds, limit })
+
+  const schema = Array.from(rowIds, (id) => {
+    const arr = new Array(limit.col.max - limit.col.min + 1).fill(null)
+
+    const mappedArr = arr.map((_, index) => {
+      const ID = `${id}_${padWithLeadingZeros(+limit.col.min + index, limit.col.max.length)}`
+      return ID
+    })
+    return mappedArr
+  })
+
+  const availableNamesScheme = schema.map((row) =>
+    row.map((name) => (files.includes(name) ? name : null))
+  )
+
+  const trimmedSchema = trimSchema(availableNamesScheme)
+
+  return trimmedSchema
+}
+
+function padWithLeadingZeros(num, totalLength) {
+  return String(num).padStart(totalLength, '0')
 }
 
 function trimSchema(schema) {
@@ -600,7 +652,8 @@ function trimAdjacentSchema(schema, frames, adjacent) {
       const frameObj = {
         frameLabel,
         selectable: adjacent.includes(frameLabel),
-        isTakenFrames: frames.includes(frameLabel)
+        isTakenFrames: frames.includes(frameLabel),
+        id: uuidv4()
       }
 
       return frameObj
@@ -610,7 +663,7 @@ function trimAdjacentSchema(schema, frames, adjacent) {
   return trimmedSchema
 }
 
-function findLimit(fileNamesArr) {
+function findLimit(fileNamesArr, nameRegex, isRowIdFirst) {
   const limit = {
     // alfa
     row: {
@@ -624,9 +677,9 @@ function findLimit(fileNamesArr) {
     }
   }
   for (const item of fileNamesArr) {
-    const match = item.match(/^([0-9]{1,})([A-Za-z]{1,})$/)
-    const col = match[1] // num
-    const row = match[2] // alfa
+    const match = item.match(nameRegex)
+    const row = match[isRowIdFirst ? 1 : 2] // alfa
+    const col = match[isRowIdFirst ? 2 : 1] // num
 
     if (!limit.row.min) {
       limit.row.min = row
@@ -661,11 +714,8 @@ function findLimit(fileNamesArr) {
 function getRowIds(limit) {
   const { min, max } = limit.row
 
-  const A = 'A'
-  const Z = 'Z'
-
-  const codeA = A.charCodeAt(0)
-  const codeZ = Z.charCodeAt(0)
+  const codeA = 'A'.charCodeAt(0)
+  const codeZ = 'Z'.charCodeAt(0)
   const minCode = min.split('').map((item) => item.charCodeAt())
   const maxCode = max.split('').map((item) => item.charCodeAt())
 
@@ -705,7 +755,7 @@ function getRowIds(limit) {
   return rowIds
 }
 
-async function downloadFile(req, data) {
+async function downloadFile(_, data) {
   const {
     foldersPaths: { searchingPath, destinationFolderPath },
     fileName
@@ -746,7 +796,7 @@ async function unArchive(_, folderPath) {
     const sourceFilesFolder =
       is.dev && process.env['ELECTRON_RENDERER_URL']
         ? path.resolve('resources/serviceFiles')
-        : path.join(__dirname, '../../../app.asar.unpacked//resources/serviceFiles')
+        : path.join(__dirname, '../../../app.asar.unpacked/resources/serviceFiles')
 
     const targetFilesFolder = folderPath
     const batFilePath = path.join(targetFilesFolder, 'laz-searcher_laz_to_las.bat')
@@ -801,7 +851,7 @@ exit`
   console.log(`.bat file created at: ${batFilePath}`)
 }
 
-async function checkFolders(req, block) {
+async function checkFolders(_, block) {
   const { searchingPath, destPath, pathType } = getSetups()
   const blockPath = path.join(destPath, block)
 
@@ -890,14 +940,12 @@ async function saveNewFramesInDB(_, data) {
   data.setup = getSetups()
   data.blockFrames = await getAllBlocksFrames(data.block)
   data.nameScheme = analyzeFileName(data.frames[0])
-  data.schemaAble = data.nameScheme.name === 'N' || data.nameScheme.name === 'na'
+  data.schemaAble =
+    data.nameScheme.name === 'N' || data.nameScheme.name === 'na' || data.nameScheme.name === 'a_n'
 
-  data.schema =
-    data.nameScheme.name === 'N'
-      ? createSchemeNType(data.blockFrames)
-      : data.nameScheme.name === 'na'
-        ? createSchemeNAType(data.blockFrames)
-        : ''
+  console.log(data)
+
+  data.schema = createFramesSchema(data.blockFrames, data.nameScheme)
 
   data.adjacentFrames = getAdjacentFrames(data.frames, data.schema)
   data.adjacentSchema = trimAdjacentSchema(data.schema, data.frames, data.adjacentFrames)
@@ -926,6 +974,28 @@ function getAdjacentFrames(frames, schema) {
   return adjacentFrames
 }
 
+function createFramesSchema(frames, nameScheme) {
+  let schema
+
+  switch (nameScheme.name) {
+    case 'N':
+      schema = createSchemeNType(frames)
+      break
+    case 'na':
+      schema = createSchemeNAType(frames)
+      break
+
+    case 'a_n':
+      schema = createSchemeA_NType(frames)
+      break
+
+    default:
+      schema = []
+      break
+  }
+  return schema
+}
+
 async function getAllBlocksFrames(block) {
   await checkAccessToken(oAuth2Client.credentials)
 
@@ -945,7 +1015,8 @@ async function getAllBlocksFrames(block) {
 
     const results = []
     for (let i = 0; i < values.length; i++) {
-      const currentBlock = values[i][1] // Column B
+      // const currentBlock = values[i][1] // Column B
+      const currentBlock = values[i][2] // Column C
       const section = values[i][3] // Column D
 
       if (currentBlock === block) {
@@ -970,23 +1041,24 @@ function isPathValid(_, path) {
 }
 
 function analyzeFileName(fileName) {
-  let result = {
-    name: '',
-    divider: ''
-  }
+  let result = {}
 
   // Check: 'a_1', 'a_2', 'b_1'
   let match = fileName.match(/^([A-Za-z]{1,})_([0-9]{1,})$/)
   if (match) {
     result.name = 'a_n'
+    result.regex = /^([A-Za-z]{1,})_([0-9]{1,})$/
+    result.isRowIdFirst = true
     result.divider = '_'
     return result
   }
-
+  console.log(result)
   // Check: '1a', '2a', '1b'
   match = fileName.match(/^([0-9]{1,})([A-Za-z]{1,})$/)
   if (match) {
     result.name = 'na'
+    result.regex = /^([0-9]{1,})([A-Za-z]{1,})$/
+    result.isRowIdFirst = false
     result.divider = ''
     return result
   }
@@ -995,6 +1067,8 @@ function analyzeFileName(fileName) {
   match = fileName.match(/^([A-Za-z]{1,})([0-9]{1,})$/)
   if (match) {
     result.name = 'an'
+    result.regex = /^([A-Za-z]{1,})([0-9]{1,})$/
+    result.isRowIdFirst = true
     result.divider = ''
     return result
   }

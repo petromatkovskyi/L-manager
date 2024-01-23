@@ -16,7 +16,7 @@ export default function Main() {
         <Grid item xs={12}>
           <Header />
         </Grid>
-        <Grid item xs={3} md={2} sx={{ borderRight: '1px solid gray' }}>
+        <Grid item xs={3} md={2}>
           <SideMenu />
         </Grid>
 

@@ -8,6 +8,7 @@ import AdjacentFrames from './components/AdjacentFrames'
 import { useDispatch } from 'react-redux'
 import { useEffect, useState } from 'react'
 import { fetchTakenFrames } from './store/framesSlice'
+import CheckingFrames from './components/CheckingFrames'
 
 function App() {
   const [router, setRouter] = useState(null)
@@ -30,6 +31,7 @@ function App() {
         })
         .join('')
         .replaceAll('\\', '/')
+
       const routers = createBrowserRouter(
         [
           {
@@ -45,6 +47,10 @@ function App() {
               {
                 path: 'adjacent-frames',
                 element: <AdjacentFrames />
+              },
+              {
+                path: 'checking-frames',
+                element: <CheckingFrames />
               }
             ]
           }
@@ -56,7 +62,6 @@ function App() {
       setRouter(routers)
     })()
   }, [])
-
   return router ? <RouterProvider router={router} /> : ''
 }
 

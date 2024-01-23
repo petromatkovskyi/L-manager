@@ -11,7 +11,8 @@ const initialState = {
     sheetName: ''
   },
   frames: [],
-  takenFrames: []
+  takenFrames: [],
+  message: ''
 }
 
 export const newFramesSlice = createSlice({
@@ -31,16 +32,20 @@ export const newFramesSlice = createSlice({
     changeDownloadStatus(state, action) {
       // idle progress done error
       state.frames = state.frames.map((row) =>
-        row.num === action.payload.num ? { ...row, status: action.payload.status } : row
+        row.section === action.payload.section ? { ...row, status: action.payload.status } : row
       )
+    },
+    setMessage(state, action) {
+      state.message = action.payload
     }
   }
 })
 
-export const { setSetup, setFrames, changeDownloadStatus, setTakenFrames } = newFramesSlice.actions
+export const { setSetup, setFrames, changeDownloadStatus, setTakenFrames, setMessage } =
+  newFramesSlice.actions
 
 export const fetchSetup = () => async (dispatch) => {
-  const setup = await electronApi.getSetups()
+  const setup = await window.electronApi.getSetups()
 
   if (Object.keys(setup).length > 0) {
     dispatch(setSetup(setup))
@@ -48,16 +53,21 @@ export const fetchSetup = () => async (dispatch) => {
 }
 
 export const fetchNewFrames = () => async (dispatch) => {
-  const frames = await electronApi.findNewFrames()
+  dispatch(setFrames([]))
+  dispatch(setMessage(''))
 
-  if (Array.isArray(frames) && frames.length > 0) {
-    dispatch(setFrames(frames))
+  const res = await window.electronApi.findNewFrames()
+
+  if (Array.isArray(res) && res.length > 0) {
+    dispatch(setFrames(res))
+  }
+  if (typeof res === 'string') {
+    dispatch(setMessage(res))
   }
 }
 
 export const fetchTakenFrames = () => async (dispatch) => {
-  const takenFrames = await electronApi.fetchTakenFrames()
-  // console.log(takenFrames)
+  const takenFrames = await window.electronApi.fetchTakenFrames()
   if (Array.isArray(takenFrames)) {
     dispatch(setTakenFrames(takenFrames))
   }

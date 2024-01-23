@@ -62,7 +62,7 @@ function SetupForm({ setIsSaved }) {
     open: false,
     message: '',
     variant: 'solid',
-    color: 'neutral',
+    color: 'success',
     duration: 5000,
     vertical: 'bottom',
     horizontal: 'left'
@@ -130,7 +130,8 @@ function SetupForm({ setIsSaved }) {
     setFeedback((prev) => ({
       ...prev,
       color: res.success ? 'success' : 'danger',
-      message: res.message
+      message: res.message,
+      open: true
     }))
     res.success && setStatus('saved')
   }
@@ -152,20 +153,7 @@ function SetupForm({ setIsSaved }) {
   return (
     <Box component="form" title="Setups" gap="2" onSubmit={handleSubmit}>
       <Grid container spacing={1} direction="column">
-        <Grid>
-          {/* <FormLabel
-            id="storage-label"
-            sx={{
-              mb: 2,
-              fontWeight: 'xl',
-              textTransform: 'uppercase',
-              fontSize: 'xs',
-              letterSpacing: '0.15rem',
-            }}
-          >
-            Paths
-          </FormLabel> */}
-        </Grid>
+        <Grid></Grid>
         <Grid xs={4} sm={3} md={2}>
           <RadioGroup
             orientation="horizontal"
@@ -404,7 +392,8 @@ function SetupForm({ setIsSaved }) {
         open={feedback.open}
         variant={feedback.variant}
         anchorOrigin={{ vertical: feedback.vertical, horizontal: feedback.horizontal }}
-        onClose={(event, reason) => {
+        color={feedback.color}
+        onClose={(_, reason) => {
           if (reason === 'clickaway') {
             setFeedback((prev) => ({ ...prev, open: false }))
             return
