@@ -172,7 +172,7 @@ function SetupForm({ setIsSaved }) {
                   justifyContent: 'center',
                   alignItems: 'center',
                   width: '50%',
-                  height: 38,
+                  height: 30,
                   '&:not([data-first-child])': {
                     borderLeft: '1px solid',
                     borderColor: 'divider'

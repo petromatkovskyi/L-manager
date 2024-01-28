@@ -7,8 +7,8 @@ import Typography from '@mui/material/Typography'
 export default function Header() {
   return (
     <Box sx={{ flexGrow: 1 }}>
-      <AppBar position="static">
-        <Toolbar sx={{ justifyContent: 'space-between' }}>
+      <AppBar position="static" sx={{ height: '3rem' }}>
+        <Box sx={{ justifyContent: 'space-between', height: '100%', p: 1 }}>
           {/* <IconButton
             size="large"
             edge="start"
@@ -22,7 +22,7 @@ export default function Header() {
             L-Manager
           </Typography>
           {/* <Button color="inherit">Login</Button> */}
-        </Toolbar>
+        </Box>
       </AppBar>
     </Box>
   )

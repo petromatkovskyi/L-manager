@@ -549,8 +549,9 @@ function createSchemeNType(files) {
 }
 
 function createSchemeNAType(files) {
-  const nameRegex = /^([A-Za-z]{1,})_([0-9]{1,})$/
-  const limit = findLimit(files, nameRegex, true)
+  const nameRegex = /^([0-9]{1,})([A-Za-z]{1,})$/
+
+  const limit = findLimit(files, nameRegex, false)
   const rowIds = getRowIds(limit)
   const schema = Array.from(rowIds, (id) => {
     const arr = new Array(limit.col.max - limit.col.min + 1).fill(null)
@@ -676,6 +677,7 @@ function findLimit(fileNamesArr, nameRegex, isRowIdFirst) {
       max: ''
     }
   }
+
   for (const item of fileNamesArr) {
     const match = item.match(nameRegex)
     const row = match[isRowIdFirst ? 1 : 2] // alfa
@@ -707,7 +709,6 @@ function findLimit(fileNamesArr, nameRegex, isRowIdFirst) {
     limit.col.min = limit.col.min > col ? col : limit.col.min
     limit.col.max = limit.col.max < col ? col : limit.col.max
   }
-
   return limit
 }
 
@@ -943,9 +944,8 @@ async function saveNewFramesInDB(_, data) {
   data.schemaAble =
     data.nameScheme.name === 'N' || data.nameScheme.name === 'na' || data.nameScheme.name === 'a_n'
 
-  console.log(data)
-
   data.schema = createFramesSchema(data.blockFrames, data.nameScheme)
+  console.log(data)
 
   data.adjacentFrames = getAdjacentFrames(data.frames, data.schema)
   data.adjacentSchema = trimAdjacentSchema(data.schema, data.frames, data.adjacentFrames)
@@ -1085,3 +1085,5 @@ function analyzeFileName(fileName) {
   result.name = 'Unknown'
   return result
 }
+
+//! change

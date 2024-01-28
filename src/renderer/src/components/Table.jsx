@@ -1,6 +1,7 @@
 import InfoOutlined from '@mui/icons-material/InfoOutlined'
 import KeyboardArrowDown from '@mui/icons-material/KeyboardArrowDown'
 import {
+  Box,
   Button,
   ButtonGroup,
   Checkbox,
@@ -11,38 +12,40 @@ import {
   Select,
   Sheet,
   Table,
-  Typography,
-  Box
+  Typography
 } from '@mui/joy'
 import { selectClasses } from '@mui/joy/Select'
 import PropTypes from 'prop-types'
 
+import { useFormik } from 'formik'
 import { useEffect, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { changeDownloadStatus, fetchNewFrames, fetchTakenFrames } from '../store/framesSlice'
-import { useFormik } from 'formik'
+import {
+  changeDownloadStatus,
+  fetchFrames,
+  fetchTakenFrames,
+  selectBlock,
+  toggleAllSelect,
+  toggleFilterNew,
+  toggleFrameSelect
+} from '../store/framesSlice'
 import SpanDecorator from './shared/SpanDecorator'
 
-const DATE_REG_EX = /^\d{2}.\d{2}$/
-
 function TableStripe({ isSaved, isDownloading, setIsDownloading }) {
-  const { frames, message } = useSelector((state) => state.frames)
-  const [framesDisplayingData, setFramesDisplayingData] = useState({
-    filteredFrames: [],
-    blocks: []
-  })
-  const [filter, setFilter] = useState({
-    new: true
-  })
-  const { handleSubmit, values, handleChange, errors, setValues, status, setStatus } = useFormik({
+  const { message, filters, filteredFrames } = useSelector((state) => state.frames)
+  const dispatch = useDispatch()
+
+  const [allFlag, setAllFlag] = useState({ indeterminate: false, checked: false })
+  const { handleSubmit, errors, setValues } = useFormik({
     initialValues: { block: '', frames: [] },
     onSubmit: downloadFrames
   })
-  const dispatch = useDispatch()
 
-  const onFindFrames = () => dispatch(fetchNewFrames())
+  const onFindFrames = () => dispatch(fetchFrames())
 
   async function downloadFrames(data) {
+    dispatch(changeDownloadStatus())
+
     console.log(data)
     if (!data.frames.length) return
 
@@ -89,68 +92,43 @@ function TableStripe({ isSaved, isDownloading, setIsDownloading }) {
   }
 
   useEffect(() => {
-    if (!frames.length) {
-      setFramesDisplayingData({
-        filteredFrames: [],
-        blocks: []
-      })
+    const selectedFrames = filteredFrames
+      .filter((frame) => frame.selected)
+      .map((frame) => frame.section)
+
+    setAllFlag(
+      selectedFrames.length === 0 || filteredFrames.length === 0
+        ? { indeterminate: false, checked: false }
+        : selectedFrames.length === filteredFrames.length
+          ? { indeterminate: false, checked: true }
+          : { indeterminate: true, checked: false }
+    )
+
+    if (!filteredFrames.length) {
       setValues({ frames: [], block: '' })
-
       return
     }
 
-    const blocks = frames.reduce((acc, item) => {
-      !acc.includes(item.part) && acc.push(item.part)
-      return acc
-    }, [])
+    setValues({
+      frames: selectedFrames,
+      block: filters.selectedBlock
+    })
+  }, [filteredFrames, filters])
 
-    setValues({ ...values, block: blocks[0] })
+  const onToggleNew = (e) => dispatch(toggleFilterNew(e.target.checked))
 
-    setFramesDisplayingData((prev) => ({
-      ...prev,
-      blocks: blocks
-    }))
-  }, [frames])
-
-  useEffect(() => {
-    if (filter.new) {
-      const filteredFrames = frames.filter(
-        (item) =>
-          item.done === '0,000' && (item.check === undefined || !item.check?.match(DATE_REG_EX))
-      )
-
-      setFramesDisplayingData((prev) => ({ ...prev, filteredFrames }))
-      setValues((prev) => ({
-        ...prev,
-        frames: filteredFrames.map((item) => item.section)
-      }))
-
-      return
-    }
-
-    const filteredFrames = frames.filter((item) => item.part === values.block)
-
-    setValues((prev) => ({ ...prev, frames: filteredFrames.map((item) => item.section) }))
-    setFramesDisplayingData((prev) => ({
-      ...prev,
-      filteredFrames
-    }))
-  }, [filter.new, values.block])
-
-  const onSelectChange = (e, newValue, name) => {
-    const synthEvent = {
-      target: {
-        value: newValue,
-        name
-      }
-    }
-    handleChange(synthEvent)
+  const onSelectBlock = (_, newValue) => {
+    return dispatch(selectBlock(newValue))
+  }
+  const onFrameChecked = (e) => {
+    dispatch(toggleFrameSelect({ select: e.target.checked, section: e.target.value }))
+  }
+  const onAllChange = (e) => {
+    dispatch(toggleAllSelect(e.target.checked))
   }
 
-  // figure out how to combine selected frames with necessary block for downloading
   return (
     <Sheet>
-      {/* {console.log(frames)} */}
       <Box component="form" onSubmit={handleSubmit}>
         <ButtonGroup spacing={1} variant="outlined" sx={{ mb: 1 }}>
           <Button color="primary" onClick={onFindFrames} disabled={!isSaved || isDownloading}>
@@ -165,26 +143,27 @@ function TableStripe({ isSaved, isDownloading, setIsDownloading }) {
           >
             {isDownloading ? 'Downloading' : 'Download frames'}
           </Button>
-          <Checkbox
-            label="New"
-            onChange={(e) => setFilter((prev) => ({ ...prev, new: e.target.checked }))}
-            checked={filter.new}
-          />
+          <Checkbox label="New" onChange={onToggleNew} checked={filters.new} />
         </ButtonGroup>
         <Table
           aria-label="striped table"
           color="primary"
           variant="outlined"
           stripe="odd"
-          // borderAxis="xBetween"
-          borderAxis="both"
+          borderAxis="xBetween"
+          // borderAxis="both"
         >
           <thead>
             <tr>
               <th style={{ width: '5%' }}>
-                <Checkbox label="All" indeterminate={true} size="sm" />
+                <Checkbox
+                  label="All"
+                  indeterminate={allFlag.indeterminate}
+                  checked={allFlag.checked}
+                  onChange={onAllChange}
+                  size="sm"
+                />
               </th>
-              {/* {console.log(values)} */}
               {/* <Box>Row #</Box> */}
               <Box sx={{ verticalAlign: 'middle' }} component="th">
                 <FormControl error={!!errors.block}>
@@ -193,8 +172,8 @@ function TableStripe({ isSaved, isDownloading, setIsDownloading }) {
                     startDecorator={<SpanDecorator label="Block" />}
                     name="block"
                     id="block"
-                    value={values.block}
-                    onChange={(e, newValue) => onSelectChange(e, newValue, 'block')}
+                    value={filters.selectedBlock}
+                    onChange={onSelectBlock}
                     sx={{
                       widBox: '100%',
                       [`& .${selectClasses.indicator}`]: {
@@ -205,12 +184,11 @@ function TableStripe({ isSaved, isDownloading, setIsDownloading }) {
                       }
                     }}
                   >
-                    {framesDisplayingData.blocks.map((item, index) => (
-                      <Option key={item} value={item} selected={index === 0}>
-                        {item}
+                    {filters.blocks.map((block) => (
+                      <Option key={block} value={block} selected={block === filters.selectedBlock}>
+                        {block}
                       </Option>
                     ))}
-                    {/* {console.log(filteredFrames)} */}
                   </Select>
                   {!!errors.block && (
                     <FormHelperText>
@@ -236,36 +214,36 @@ function TableStripe({ isSaved, isDownloading, setIsDownloading }) {
                 </td>
               </tr>
             ) : (
-              framesDisplayingData.filteredFrames.map((row) => (
-                <tr key={row.num}>
+              filteredFrames?.map((frame) => (
+                <tr key={frame.num}>
                   <td>
                     <Checkbox
-                      value={row.section}
+                      value={frame.section}
                       size="sm"
-                      checked={values.frames.includes(row.section)}
-                      onChange={handleChange}
+                      checked={frame.selected}
+                      onChange={onFrameChecked}
                       name="frames"
                     />
                   </td>
                   {/* <td>{row.num}</td> */}
                   {/* <td>{row.block}</td> */}
-                  <td>{row.part}</td>
-                  <td>{row.section}</td>
-                  <td>{row.operator}</td>
+                  <td>{frame.part}</td>
+                  <td>{frame.section}</td>
+                  <td>{frame.operator}</td>
                   {/* <td>{row.total}</td> */}
-                  <td>{row.done}</td>
-                  <td>{row.left}</td>
-                  <td>{row.check}</td>
+                  <td>{frame.done}</td>
+                  <td>{frame.left}</td>
+                  <td>{frame.check}</td>
                   <td>
                     <Typography
                       color={
-                        row.status === 'done'
+                        frame.status === 'done'
                           ? 'success'
-                          : row.status === 'progress'
+                          : frame.status === 'progress'
                             ? 'primary'
-                            : row.status === 'error'
+                            : frame.status === 'error'
                               ? 'danger'
-                              : row.status === 'pending'
+                              : frame.status === 'pending'
                                 ? 'warning'
                                 : 'neutral'
                       }
@@ -273,7 +251,7 @@ function TableStripe({ isSaved, isDownloading, setIsDownloading }) {
                       variant="plain"
                       // textAlign="center"
                     >
-                      {row.status}
+                      {frame.status}
                     </Typography>
                   </td>
                 </tr>
