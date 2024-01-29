@@ -6,9 +6,13 @@ const initialState = {
     searchingPath: '',
     destPath: '',
     operatorName: '',
-    spreadsheetLink: '',
-    spreadsheetId: '',
-    sheetName: ''
+    selectedSpreadsheet: {
+      spreadsheetLink: '',
+      sheetName: '',
+      spreadsheetId: '',
+      name: ''
+    },
+    spreadsheets: []
   },
   frames: [],
   filters: {
@@ -117,7 +121,6 @@ export const {
 
 export const fetchSetup = () => async (dispatch) => {
   const setup = await window.electronApi.getSetups()
-
   if (Object.keys(setup).length > 0) {
     dispatch(setSetup(setup))
   }

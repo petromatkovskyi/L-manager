@@ -7,7 +7,7 @@ contextBridge.exposeInMainWorld('electronApi', {
     return res
   },
   findNewFrames: async () => {
-    const res = await ipcRenderer.invoke('findNewFrames')
+    const res = await ipcRenderer.invoke('findFrames')
     return res
   },
   checkFolders: async (block) => {
@@ -36,9 +36,11 @@ contextBridge.exposeInMainWorld('electronApi', {
     const res = await ipcRenderer.invoke('getSetups')
     return res
   },
-  getSheetNames: async (data = { spreadsheetId: '' }) => {
-    const sheetNames = await ipcRenderer.invoke('getSheetNames', data)
-    return sheetNames
+  getSheetNames: async (data = { selectedSpreadsheet: { spreadsheetId: '' } }) => {
+    return await ipcRenderer.invoke('getSheetNames', data)
+  },
+  getSpreadsheetTitle: async (id) => {
+    return await ipcRenderer.invoke('getSpreadsheetTitle', id)
   },
   checkSpreadSheetId: async (id) => {
     const isIdValid = await ipcRenderer.invoke('checkSpreadSheetId', id)

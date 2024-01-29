@@ -27,6 +27,7 @@ const oAuth2Client = new google.auth.OAuth2(client_id, client_secret, redirect_u
 
 let mainWindow
 let authWindow
+let setups
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -64,10 +65,13 @@ app.whenReady().then(async () => {
   // app.on('browser-window-created', (_, window) => {
   //   optimizer.watchWindowShortcuts(window)
   // })
-
+  setups = getSetups()
+  if (!setups.selectedSpreadsheet || !setups.spreadsheets) {
+    setups = {}
+  }
+  createWindow()
   await checkAccessToken()
 
-  createWindow()
   app.on('activate', function () {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
@@ -75,6 +79,7 @@ app.whenReady().then(async () => {
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
+    saveSetupsInSetupsFile()
     app.quit()
   }
 })
@@ -82,9 +87,10 @@ app.on('window-all-closed', () => {
 ipcMain.handle('getSetups', getSetups)
 ipcMain.handle('choosePath', choosePath)
 ipcMain.handle('getSheetNames', getSheetNames)
+ipcMain.handle('getSpreadsheetTitle', getSpreadsheetTitle)
 ipcMain.handle('checkSpreadSheetId', checkSpreadSheetId)
 ipcMain.handle('saveSetups', saveSetups)
-ipcMain.handle('findNewFrames', findFrames)
+ipcMain.handle('findFrames', findFrames)
 ipcMain.handle('checkFolders', checkFolders)
 ipcMain.handle('saveNewFramesInDB', saveNewFramesInDB)
 ipcMain.handle('downloadFile', downloadFile)
@@ -100,7 +106,7 @@ ipcMain.handle('getCurrLocation', () => {
 
 async function authorize() {
   return new Promise((res) => {
-    mainWindow.setEnabled(false)
+    if (mainWindow) mainWindow.setEnabled(false)
 
     const authUrl = oAuth2Client.generateAuthUrl({
       access_type: 'offline',
@@ -126,8 +132,10 @@ async function authorize() {
 
     authWindow.on('closed', () => {
       authWindow = null
-      mainWindow.setEnabled(true)
-      mainWindow.focus()
+      if (mainWindow) {
+        mainWindow.setEnabled(true)
+        mainWindow.focus()
+      }
     })
 
     authWindow.loadURL(authUrl)
@@ -162,24 +170,32 @@ async function checkAccessToken(clientToken) {
   try {
     if (clientToken == null) {
       const tokenData = fs.readFileSync(TOKEN_PATH, 'utf8')
+
       token = JSON.parse(tokenData)
     }
 
-    if (token && token.expiry_date > Date.now()) {
+    if (token && token?.expiry_date > Date.now()) {
       oAuth2Client.setCredentials(token)
 
       return true
     }
 
-    if (token && token.refresh_token) {
+    console.log('181')
+    if (token && token?.refresh_token) {
       const isRefreshed = await refreshAccessToken(token.refresh_token)
-
       isRefreshed || (await authorize())
     } else {
       await authorize()
     }
   } catch (e) {
     console.error('Error while reading file 153: ', e.message)
+
+    fs.writeFile(TOKEN_PATH, JSON.stringify({}), (err) => {
+      if (err) {
+        console.error('Error saving empty obj: ', err.message)
+      }
+      console.log('Empty obj saved in token.json')
+    })
     return null
   }
 }
@@ -206,28 +222,77 @@ async function refreshAccessToken(refreshToken) {
 }
 
 function getSetups() {
+  if (setups) return setups
+
   try {
-    const data = fs.readFileSync(SETUP_PATH, 'utf8')
-    if (data) {
-      const jsonData = JSON.parse(data)
-      return jsonData
-    }
-    return false
+    const savedSetups = getSavedSetups()
+    if (!savedSetups) throw new Error('Something went wrong while reading setups file')
+
+    return savedSetups
   } catch (err) {
-    console.error('Error getting JSON:', err)
-    throw err
+    console.log(err.message)
+    return null
   }
 }
 
-function saveSetups(_, setups) {
+function getSavedSetups() {
+  try {
+    const data = fs.readFileSync(SETUP_PATH, 'utf8')
+    if (data) {
+      const setups = JSON.parse(data)
+      console.log('242', setups)
+      return setups
+    }
+    return null
+  } catch (err) {
+    console.error('Error getting JSON:', err.message)
+    return null
+  }
+}
+
+function saveSetups(_, newSetups) {
   const {
     pathType,
     searchingPath,
     destPath,
     operatorName,
-    spreadsheetLink,
-    spreadsheetId,
-    sheetName
+    selectedSpreadsheet: { spreadsheetLink, spreadsheetId, sheetName }
+  } = newSetups
+
+  if (
+    searchingPath &&
+    destPath &&
+    operatorName &&
+    spreadsheetLink &&
+    spreadsheetId &&
+    sheetName &&
+    pathType &&
+    operators.includes(operatorName)
+  ) {
+    try {
+      setups = newSetups
+
+      return { success: true, message: 'Setups are saved' }
+    } catch (e) {
+      console.log(e)
+      return { success: false, message: e.message }
+    }
+  } else if (!operators.includes(operatorName)) {
+    return { success: false, message: 'Operator is not appropriate' }
+  } else {
+    return { success: false, message: 'Something went wrong...' }
+  }
+}
+
+function saveSetupsInSetupsFile() {
+  console.log('saveSetupsInSetupsFile')
+  if (!setups) return
+  const {
+    pathType,
+    searchingPath,
+    destPath,
+    operatorName,
+    selectedSpreadsheet: { spreadsheetLink, spreadsheetId, sheetName }
   } = setups
 
   if (
@@ -240,22 +305,26 @@ function saveSetups(_, setups) {
     pathType &&
     operators.includes(operatorName)
   ) {
-    fs.writeFileSync(SETUP_PATH, JSON.stringify(setups), (err) => {
-      if (err) {
-        console.error('Error saving setups: ', err.message)
-      }
-      console.log('Setups stored in setup.json')
-    })
-
-    // fs.writeFile(SETUP_PATH, JSON.stringify(data), (err) => {
+    // fs.writeFileSync(SETUP_PATH, JSON.stringify(setups), (err) => {
     //   if (err) {
-    //     console.error('Error saving setups: ', err.message);
+    //     console.error('Error saving setups: ', err.message)
     //   }
-    //   console.log('Setups stored in setup.json');
-    // });
+    //   console.log('Setups stored in setup.json')
+    // })
+    try {
+      fs.writeFile(SETUP_PATH, JSON.stringify(setups), (err) => {
+        if (err) {
+          console.error('Error saving setups: ', err.message)
+        }
+        console.log('Setups stored in setup.json')
+      })
 
-    return { success: true, message: 'Setups are saved' }
-  } else if (operators.includes(operatorName)) {
+      return { success: true, message: 'Setups are saved' }
+    } catch (e) {
+      console.log(e)
+      return { success: false, message: e.message }
+    }
+  } else if (!operators.includes(operatorName)) {
     return { success: false, message: 'Operator is not appropriate' }
   } else {
     return { success: false, message: 'Something went wrong...' }
@@ -264,8 +333,6 @@ function saveSetups(_, setups) {
 
 async function choosePath() {
   try {
-    // mainWindow.setEnabled(false)
-
     const result = await dialog.showOpenDialog(mainWindow, {
       properties: ['openDirectory'],
       title: 'Choose directory',
@@ -285,24 +352,23 @@ async function choosePath() {
     console.error(err)
     return null
   } finally {
-    // mainWindow.setEnabled(true)
-    // mainWindow.focus()
+    mainWindow.focus()
   }
 }
 
 async function getSheetNames(_, data) {
   const auth = oAuth2Client
-
   await checkAccessToken(auth.credentials)
 
-  const { spreadsheetId } = data?.spreadsheetId ? data : getSetups()
+  const {
+    selectedSpreadsheet: { spreadsheetId }
+  } = data?.selectedSpreadsheet?.spreadsheetId ? data : getSetups()
 
   if (!spreadsheetId) {
     throw new Error('Spreed sheet id empty')
   }
 
   const sheets = google.sheets({ version: 'v4', auth })
-
   try {
     const response = await sheets.spreadsheets.get({
       spreadsheetId
@@ -331,8 +397,30 @@ async function checkSpreadSheetId(_, id) {
     const response = await sheets.spreadsheets.get({
       spreadsheetId: id
     })
-    console.log(response?.data?.properties?.title)
+    console.log('390', response?.data?.properties?.title)
     return !!response?.data?.properties?.title
+  } catch (error) {
+    console.error('Error getting sheet titles:', error.message)
+    return null
+  }
+}
+
+async function getSpreadsheetTitle(_, id) {
+  await checkAccessToken(oAuth2Client.credentials)
+  console.log('397', id)
+
+  if (!id) {
+    throw new Error('Spreed sheet id empty')
+  }
+
+  const sheets = google.sheets({ version: 'v4', auth: oAuth2Client })
+
+  try {
+    const response = await sheets.spreadsheets.get({
+      spreadsheetId: id
+    })
+
+    return response?.data?.properties?.title
   } catch (error) {
     console.error('Error getting sheet titles:', error.message)
     return null
@@ -344,13 +432,14 @@ async function findFrames() {
 
   await checkAccessToken(auth.credentials)
 
-  const { spreadsheetId, sheetName, operatorName } = getSetups()
-
+  const {
+    selectedSpreadsheet: { spreadsheetId, sheetName },
+    operatorName
+  } = getSetups()
+  console.log('438', spreadsheetId, sheetName, operatorName)
   const sheets = google.sheets({ version: 'v4', auth })
 
   const range = `${sheetName}`
-
-  const DATE_REG_EX = /^\d{2}.\d{2}$/
 
   try {
     const response = await sheets.spreadsheets.values.get({
@@ -550,8 +639,8 @@ function createSchemeNType(files) {
 
 function createSchemeNAType(files) {
   const nameRegex = /^([0-9]{1,})([A-Za-z]{1,})$/
-
   const limit = findLimit(files, nameRegex, false)
+
   const rowIds = getRowIds(limit)
   const schema = Array.from(rowIds, (id) => {
     const arr = new Array(limit.col.max - limit.col.min + 1).fill(null)
@@ -566,7 +655,6 @@ function createSchemeNAType(files) {
   const availableNamesScheme = schema.map((row) =>
     row.map((name) => (files.includes(name) ? name : null))
   )
-
   const trimmedSchema = trimSchema(availableNamesScheme)
 
   return trimmedSchema
@@ -602,6 +690,7 @@ function padWithLeadingZeros(num, totalLength) {
 }
 
 function trimSchema(schema) {
+  console.log(schema)
   let trimmedEmptyRows = schema.filter((row) => !row.every((item) => item === null))
 
   let trimIndexes = trimmedEmptyRows.reduce(
@@ -945,7 +1034,6 @@ async function saveNewFramesInDB(_, data) {
     data.nameScheme.name === 'N' || data.nameScheme.name === 'na' || data.nameScheme.name === 'a_n'
 
   data.schema = createFramesSchema(data.blockFrames, data.nameScheme)
-  console.log(data)
 
   data.adjacentFrames = getAdjacentFrames(data.frames, data.schema)
   data.adjacentSchema = trimAdjacentSchema(data.schema, data.frames, data.adjacentFrames)
@@ -976,7 +1064,6 @@ function getAdjacentFrames(frames, schema) {
 
 function createFramesSchema(frames, nameScheme) {
   let schema
-
   switch (nameScheme.name) {
     case 'N':
       schema = createSchemeNType(frames)
@@ -1000,11 +1087,11 @@ async function getAllBlocksFrames(block) {
   await checkAccessToken(oAuth2Client.credentials)
 
   const sheets = google.sheets({ version: 'v4', auth: oAuth2Client })
-  const range = `${getSetups().sheetName}`
+  const range = `${getSetups().selectedSpreadsheet.sheetName}`
 
   try {
     const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: getSetups().spreadsheetId,
+      spreadsheetId: getSetups().selectedSpreadsheet.spreadsheetId,
       range
     })
 
@@ -1086,4 +1173,21 @@ function analyzeFileName(fileName) {
   return result
 }
 
-//! change
+async function optimizeOldSetups(setups) {
+  if (!setups.selectedSpreadsheet || !setups.spreadsheets) {
+    const spreadsheet = {
+      spreadsheetLink: setups.spreadsheetLink,
+      spreadsheetId: setups.spreadsheetId,
+      sheetName: setups.sheetName,
+      name: await getSpreadsheetTitle(null, setups.spreadsheetId)
+    }
+    const newSetups = {
+      ...setups,
+      selectedSpreadsheet: spreadsheet,
+      spreadsheets: [spreadsheet]
+    }
+
+    return newSetups
+  }
+  return setups
+}

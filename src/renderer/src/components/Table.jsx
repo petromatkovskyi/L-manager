@@ -70,7 +70,7 @@ function TableStripe({ isSaved, isDownloading, setIsDownloading }) {
           dispatch(changeDownloadStatus({ section: frame, status: res ? 'done' : 'error' }))
         }
 
-        // unarchive downloaded files in destination folder
+        //? unarchive downloaded files in destination folder
         window.electronApi.unArchive(foldersPaths.destinationFolderPath)
 
         const dataForDB = {
@@ -79,7 +79,7 @@ function TableStripe({ isSaved, isDownloading, setIsDownloading }) {
           framesLocation: foldersPaths.destinationFolderPath,
           takenFrom: foldersPaths.searchingPath
         }
-
+        console.log(dataForDB)
         await window.electronApi.saveNewFramesInDB(dataForDB)
       }
     } catch (e) {
