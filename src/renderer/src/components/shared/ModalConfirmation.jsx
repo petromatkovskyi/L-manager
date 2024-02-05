@@ -10,19 +10,19 @@ import {
   ModalDialog
 } from '@mui/joy'
 
-function ModalConfirmation({ label, callback }) {
+function ModalConfirmation({ label, callback, header = '' }) {
   return (
     <Modal open={!!label}>
       <ModalDialog variant="outlined" role="alertdialog" color="danger">
         <DialogTitle>
           <WarningRoundedIcon />
-          Confirmation
+          {header ? header : 'Confirmation'}
         </DialogTitle>
         <Divider />
         <DialogContent sx={{ gap: 1, flexDirection: 'row' }}>{label}</DialogContent>
         <DialogActions>
           <Button variant="solid" color="danger" onClick={() => callback(true)}>
-            Discard notes
+            Confirm
           </Button>
           <Button variant="plain" color="neutral" onClick={() => callback(false)}>
             Cancel
@@ -34,8 +34,9 @@ function ModalConfirmation({ label, callback }) {
 }
 
 ModalConfirmation.propTypes = {
-  label: PropTypes.string,
-  callback: PropTypes.func
+  label: PropTypes.oneOfType([PropTypes.element, PropTypes.bool]),
+  callback: PropTypes.func,
+  header: PropTypes.string
 }
 
 export default ModalConfirmation

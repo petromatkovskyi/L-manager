@@ -1,16 +1,15 @@
 import DeleteForever from '@mui/icons-material/DeleteForever'
 import KeyboardArrowDown from '@mui/icons-material/KeyboardArrowDown'
-import { Button, Typography } from '@mui/joy'
 import { Grid } from '@mui/material'
-import { useSelector } from 'react-redux'
 
-import { FormControl, Option, Select } from '@mui/joy'
+import { FormControl, Option, Select, Button, Typography } from '@mui/joy'
 import { selectClasses } from '@mui/joy/Select'
 import { useEffect, useState } from 'react'
-import { useDispatch } from 'react-redux'
+import { useDispatch, useSelector } from 'react-redux'
 import { framesSelector, setTakenFrames } from '../store/framesSlice'
 import AdjacentForm from './AdjacentForm'
 import ModalConfirmation from './shared/ModalConfirmation'
+
 import SpanDecorator from './shared/SpanDecorator'
 
 export default function AdjacentFrames() {
@@ -47,8 +46,8 @@ export default function AdjacentFrames() {
     setSelected(newValue)
   }
 
-  const deleteFramesData = async (eliminate) => {
-    if (!eliminate) {
+  const deleteFramesData = async (confirm) => {
+    if (!confirm) {
       setConfirmData(null)
       return
     }
@@ -123,6 +122,7 @@ export default function AdjacentFrames() {
             </Typography>
           )
         }
+        header="Delete scheme"
       />
     </>
   )

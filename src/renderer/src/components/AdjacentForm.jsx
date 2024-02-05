@@ -1,19 +1,22 @@
-import Done from '@mui/icons-material/Done'
-import InfoOutlined from '@mui/icons-material/InfoOutlined'
 import {
   Button,
   CircularProgress,
   FormControl,
   FormHelperText,
   FormLabel,
+  Grid,
   Input,
   Typography
 } from '@mui/joy'
-import { Box, Grid } from '@mui/material'
+import { Box } from '@mui/material'
 import { useFormik } from 'formik'
 import PropTypes from 'prop-types'
 import { useEffect } from 'react'
 import * as Yup from 'yup'
+
+import Done from '@mui/icons-material/Done'
+import InfoOutlined from '@mui/icons-material/InfoOutlined'
+
 import AdjacentFramesDisplay from './AdjacentFramesDisplay'
 import SpanDecorator from './shared/SpanDecorator'
 
@@ -101,7 +104,7 @@ function AdjacentForm({ framesObj }) {
       }}
     >
       <Grid container spacing={1} direction="column">
-        <Grid item>
+        <Grid>
           <FormLabel
             id="storage-label"
             sx={{
@@ -115,52 +118,53 @@ function AdjacentForm({ framesObj }) {
           </FormLabel>
         </Grid>
 
-        <Grid item>
-          <FormControl error={!!errors.copyFrom}>
-            <Input
-              startDecorator={<SpanDecorator label="Copy from" />}
-              endDecorator={
-                <Button onClick={onChoosePath} variant="soft" name="copyFrom">
-                  Change Path
-                </Button>
-              }
-              onChange={handleChange}
-              name="copyFrom"
-              value={values.copyFrom}
-              readOnly
-            />
-            {!!errors.copyFrom && (
-              <FormHelperText>
-                <InfoOutlined />
-                {errors.copyFrom}
-              </FormHelperText>
-            )}
-          </FormControl>
-        </Grid>
+        <Grid container>
+          <Grid sm={12} md={6}>
+            <FormControl error={!!errors.copyFrom}>
+              <Input
+                startDecorator={<SpanDecorator label="Copy from" />}
+                endDecorator={
+                  <Button onClick={onChoosePath} variant="soft" name="copyFrom">
+                    Change Path
+                  </Button>
+                }
+                onChange={handleChange}
+                name="copyFrom"
+                value={values.copyFrom}
+                readOnly
+              />
+              {!!errors.copyFrom && (
+                <FormHelperText>
+                  <InfoOutlined />
+                  {errors.copyFrom}
+                </FormHelperText>
+              )}
+            </FormControl>
+          </Grid>
 
-        <Grid item>
-          <FormControl error={!!errors.pasteTo}>
-            <Input
-              startDecorator={<SpanDecorator label="Paste to" />}
-              endDecorator={
-                <Button onClick={onChoosePath} variant="soft" name="pasteTo">
-                  Change Path
-                </Button>
-              }
-              name="pasteTo"
-              onChange={handleChange}
-              value={values.pasteTo}
-              readOnly
-            />
-            {!!errors.pasteTo && (
-              <FormHelperText>
-                <InfoOutlined />
-                {errors.pasteTo}
-              </FormHelperText>
-            )}
-          </FormControl>
+          <Grid sm={12} md={6}>
+            <FormControl error={!!errors.pasteTo}>
+              <Input
+                startDecorator={<SpanDecorator label="Paste to" />}
+                endDecorator={
+                  <Button onClick={onChoosePath} variant="soft" name="pasteTo">
+                    Change Path
+                  </Button>
+                }
+                name="pasteTo"
+                onChange={handleChange}
+                value={values.pasteTo}
+                readOnly
+              />
+              {!!errors.pasteTo && (
+                <FormHelperText>
+                  <InfoOutlined />
+                  {errors.pasteTo}
+                </FormHelperText>
+              )}
+            </FormControl>
+          </Grid>
         </Grid>
-
         {
           //! with big scale might not work. Leak of space may brake structure
         }

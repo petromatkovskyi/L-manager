@@ -71,7 +71,7 @@ function TableStripe({ isSaved, isDownloading, setIsDownloading }) {
         }
 
         //? unarchive downloaded files in destination folder
-        window.electronApi.unArchive(foldersPaths.destinationFolderPath)
+        window.electronApi.convertFiles(foldersPaths.destinationFolderPath)
 
         const dataForDB = {
           frames: data.frames,

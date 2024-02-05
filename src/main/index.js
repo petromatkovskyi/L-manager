@@ -67,8 +67,10 @@ app.whenReady().then(async () => {
   // })
   setups = getSetups()
   if (!setups.selectedSpreadsheet || !setups.spreadsheets) {
-    setups = {}
+    setups.selectedSpreadsheet = {}
+    setups.spreadsheets = []
   }
+
   createWindow()
   await checkAccessToken()
 
@@ -94,9 +96,10 @@ ipcMain.handle('findFrames', findFrames)
 ipcMain.handle('checkFolders', checkFolders)
 ipcMain.handle('saveNewFramesInDB', saveNewFramesInDB)
 ipcMain.handle('downloadFile', downloadFile)
-ipcMain.handle('unArchive', unArchive)
+ipcMain.handle('convertFiles', convertFiles)
 ipcMain.handle('fetchTakenFrames', () => frames.getFramesData())
 ipcMain.handle('deleteFramesData', (_, id) => frames.deleteFrames(id))
+ipcMain.handle('deleteSpreadsheet', deleteSpreadsheet)
 ipcMain.handle('isPathValid', isPathValid)
 ipcMain.handle('getCurrLocation', () => {
   return is.dev && process.env['ELECTRON_RENDERER_URL']
@@ -222,7 +225,7 @@ async function refreshAccessToken(refreshToken) {
 }
 
 function getSetups() {
-  if (setups) return setups
+  if (setups) return JSON.parse(JSON.stringify(setups))
 
   try {
     const savedSetups = getSavedSetups()
@@ -240,11 +243,28 @@ function getSavedSetups() {
     const data = fs.readFileSync(SETUP_PATH, 'utf8')
     if (data) {
       const setups = JSON.parse(data)
-      console.log('242', setups)
       return setups
     }
+    console.log('248')
     return null
   } catch (err) {
+    console.error(err)
+    if (err.code === 'ENOENT') {
+      const emptySetups = {
+        pathType: '',
+        searchingPath: '',
+        destPath: '',
+        operatorName: '',
+        selectedSpreadsheet: {
+          sheetName: '',
+          name: '',
+          spreadsheetLink: '',
+          spreadsheetId: ''
+        },
+        spreadsheets: []
+      }
+      return emptySetups
+    }
     console.error('Error getting JSON:', err.message)
     return null
   }
@@ -287,6 +307,7 @@ function saveSetups(_, newSetups) {
 function saveSetupsInSetupsFile() {
   console.log('saveSetupsInSetupsFile')
   if (!setups) return
+
   const {
     pathType,
     searchingPath,
@@ -305,12 +326,6 @@ function saveSetupsInSetupsFile() {
     pathType &&
     operators.includes(operatorName)
   ) {
-    // fs.writeFileSync(SETUP_PATH, JSON.stringify(setups), (err) => {
-    //   if (err) {
-    //     console.error('Error saving setups: ', err.message)
-    //   }
-    //   console.log('Setups stored in setup.json')
-    // })
     try {
       fs.writeFile(SETUP_PATH, JSON.stringify(setups), (err) => {
         if (err) {
@@ -425,6 +440,25 @@ async function getSpreadsheetTitle(_, id) {
     console.error('Error getting sheet titles:', error.message)
     return null
   }
+}
+
+function deleteSpreadsheet(_, spreadsheet) {
+  const localSetups = getSetups()
+
+  if (localSetups.spreadsheets.length > 1) {
+    localSetups.spreadsheets = localSetups.spreadsheets.filter(
+      (item) => item.spreadsheetId !== spreadsheet.spreadsheetId
+    )
+    if (localSetups.selectedSpreadsheet.spreadsheetId === spreadsheet.spreadsheetId) {
+      localSetups.selectedSpreadsheet = localSetups.spreadsheets.at(-1)
+    }
+
+    saveSetups(null, localSetups)
+
+    return localSetups
+  }
+
+  return localSetups
 }
 
 async function findFrames() {
@@ -881,7 +915,7 @@ async function downloadFile(_, data) {
   }
 }
 
-async function unArchive(_, folderPath) {
+async function convertFiles(_, folderPath) {
   try {
     const sourceFilesFolder =
       is.dev && process.env['ELECTRON_RENDERER_URL']
@@ -1171,23 +1205,4 @@ function analyzeFileName(fileName) {
 
   result.name = 'Unknown'
   return result
-}
-
-async function optimizeOldSetups(setups) {
-  if (!setups.selectedSpreadsheet || !setups.spreadsheets) {
-    const spreadsheet = {
-      spreadsheetLink: setups.spreadsheetLink,
-      spreadsheetId: setups.spreadsheetId,
-      sheetName: setups.sheetName,
-      name: await getSpreadsheetTitle(null, setups.spreadsheetId)
-    }
-    const newSetups = {
-      ...setups,
-      selectedSpreadsheet: spreadsheet,
-      spreadsheets: [spreadsheet]
-    }
-
-    return newSetups
-  }
-  return setups
 }

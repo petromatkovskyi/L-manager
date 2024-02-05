@@ -1,19 +1,6 @@
 import { createSlice } from '@reduxjs/toolkit'
 
 const initialState = {
-  setup: {
-    pathType: 'root',
-    searchingPath: '',
-    destPath: '',
-    operatorName: '',
-    selectedSpreadsheet: {
-      spreadsheetLink: '',
-      sheetName: '',
-      spreadsheetId: '',
-      name: ''
-    },
-    spreadsheets: []
-  },
   frames: [],
   filters: {
     new: true,
@@ -27,13 +14,10 @@ const initialState = {
 
 const DATE_REG_EX = /^\d{2}.\d{2}$/
 
-export const newFramesSlice = createSlice({
+export const framesSlice = createSlice({
   name: 'frames',
   initialState,
   reducers: {
-    setSetup: (state, action) => {
-      state.setup = action.payload
-    },
     setFrames: (state, action) => {
       state.frames = action.payload
     },
@@ -106,7 +90,6 @@ export const newFramesSlice = createSlice({
 })
 
 export const {
-  setSetup,
   setFrames,
   changeDownloadStatus,
   setTakenFrames,
@@ -117,14 +100,7 @@ export const {
   toggleFrameSelect,
   setFilterFrames,
   toggleAllSelect
-} = newFramesSlice.actions
-
-export const fetchSetup = () => async (dispatch) => {
-  const setup = await window.electronApi.getSetups()
-  if (Object.keys(setup).length > 0) {
-    dispatch(setSetup(setup))
-  }
-}
+} = framesSlice.actions
 
 export const fetchFrames = () => async (dispatch) => {
   dispatch(setFrames([]))
@@ -167,8 +143,6 @@ export const fetchTakenFrames = () => async (dispatch) => {
 
 export const framesSelector = (store) => store.frames
 
-export default newFramesSlice.reducer
-
 function filterFrames(frames, filters) {
   const filteredFrames = frames.filter((frame) => {
     if (frame.part === filters.selectedBlock) {
@@ -180,3 +154,5 @@ function filterFrames(frames, filters) {
   })
   return filteredFrames
 }
+
+export default framesSlice.reducer

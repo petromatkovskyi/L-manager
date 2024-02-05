@@ -21,9 +21,10 @@ import { useFormik } from 'formik'
 import { useEffect, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import * as Yup from 'yup'
-import { fetchSetup, framesSelector } from '../store/framesSlice'
-import SpanDecorator from './shared/SpanDecorator'
+
 import SpreadsheetLinkAutocomplete from './SpreadsheetLinkAutocomplete'
+import SpanDecorator from './shared/SpanDecorator'
+import { fetchSetup, setSetup, setupSelector } from '../store/setupSlice'
 
 Yup.addMethod(Yup.string, 'checkSpreadsheetId', function (errMsg) {
   return this.test('test-valid-spreadsheet-id', errMsg, async function (value) {
@@ -54,19 +55,20 @@ const SetupSchema = Yup.object().shape({
       .matches(/^https:\/\/docs.google.com\/spreadsheets\/d\//, {
         message: 'Spreadsheet link isn`t valid'
       }),
-    spreadsheetId: Yup.string()
-      .required('Spreadsheet Id is required')
-      .checkSpreadsheetId(
-        'Spreadsheet Id isn`t valid. Spreadsheet has not been find. Please check link above'
-      ),
+    // spreadsheetId: Yup.string()
+    //   .required('Spreadsheet Id is required')
+    //   .checkSpreadsheetId(
+    //     'Spreadsheet Id isn`t valid. Spreadsheet has not been find. Please check link above'
+    //   ),
     sheetName: Yup.string().required('Sheet name is required')
   })
 })
+
 function SetupForm({ setIsSaved }) {
-  const framesState = useSelector(framesSelector)
+  const setup = useSelector(setupSelector)
   const dispatch = useDispatch()
   const { handleSubmit, values, handleChange, errors, setValues, status, setStatus } = useFormik({
-    initialValues: framesState.setup,
+    initialValues: setup,
     onSubmit: onSubmitSetups,
     validationSchema: SetupSchema
   })
@@ -79,10 +81,9 @@ function SetupForm({ setIsSaved }) {
     vertical: 'bottom',
     horizontal: 'left'
   })
-
   const [sheetNames, setSheetNames] = useState([])
 
-  const onSelectChange = (e, newValue, name) => {
+  const onSelectChange = (_, newValue, name) => {
     if (name === 'operatorName') {
       const synthEvent = {
         target: {
@@ -107,6 +108,7 @@ function SetupForm({ setIsSaved }) {
             : spreadsheet.sheetName
       }))
     }))
+
     status === 'saved' && setStatus('changed')
   }
 
@@ -130,16 +132,16 @@ function SetupForm({ setIsSaved }) {
           spreadsheetId: id || values?.selectedSpreadsheet?.spreadsheetId
         }
       })
+
       if (sheetNamesRes?.length) {
         setSheetNames(sheetNamesRes)
         return
       }
-      setSheetNames([])
     }
+    setSheetNames([])
   }
 
   const onFieldChange = (e) => {
-    status === 'saved' && setStatus('changed')
     handleChange(e)
   }
 
@@ -151,7 +153,12 @@ function SetupForm({ setIsSaved }) {
       message: res.message,
       open: true
     }))
-    res.success && setStatus('saved')
+    if (res.success) {
+      setStatus('saved')
+      dispatch(setSetup(values))
+    }
+
+    // res.success && setStatus('saved')
   }
 
   useEffect(() => {
@@ -159,10 +166,8 @@ function SetupForm({ setIsSaved }) {
   }, [])
 
   useEffect(() => {
-    setValues(framesState.setup)
-    getSheetNames(null, framesState.setup.selectedSpreadsheet.spreadsheetId)
-    setStatus(Object.values(framesState.setup).some((item) => item == false) ? 'changed' : 'saved')
-  }, [framesState.setup])
+    shouldUpdate(setup, values) && setValues(setup)
+  }, [setup])
 
   useEffect(() => {
     setIsSaved(status === 'saved')
@@ -170,7 +175,11 @@ function SetupForm({ setIsSaved }) {
 
   useEffect(() => {
     getSheetNames(null, values.selectedSpreadsheet.spreadsheetId)
-  }, [values.selectedSpreadsheet])
+  }, [values.selectedSpreadsheet.spreadsheetId])
+
+  useEffect(() => {
+    setStatus(shouldUpdate(setup, values) ? 'changed' : 'saved')
+  }, [values])
 
   return (
     <Box component="form" title="Setups" gap="2" onSubmit={handleSubmit}>
@@ -227,6 +236,7 @@ function SetupForm({ setIsSaved }) {
             ))}
           </RadioGroup>
         </Grid>
+
         <Grid container>
           <Grid sm={12} md={6}>
             <FormControl error={!!errors.searchingPath}>
@@ -273,6 +283,7 @@ function SetupForm({ setIsSaved }) {
             </FormControl>
           </Grid>
         </Grid>
+
         <Grid>
           <SpreadsheetLinkAutocomplete
             spreadsheets={values.spreadsheets}
@@ -292,7 +303,7 @@ function SetupForm({ setIsSaved }) {
                 indicator={<KeyboardArrowDown />}
                 name="selectedSpreadsheet.sheetName"
                 id="sheetName"
-                value={values.selectedSpreadsheet.sheetName}
+                value={values.selectedSpreadsheet?.sheetName || ''}
                 onChange={(e, newValue) =>
                   onSelectChange(e, newValue, 'selectedSpreadsheet.sheetName')
                 }
@@ -408,6 +419,41 @@ function SetupForm({ setIsSaved }) {
 
 SetupForm.propTypes = {
   setIsSaved: PropTypes.func.isRequired
+}
+
+function shouldUpdate(setup, values) {
+  const setupKeys = Object.keys(setup)
+
+  let shouldUpdate = false
+  for (let key of setupKeys) {
+    if (!values[key]) {
+      shouldUpdate = true
+      continue
+    }
+
+    if (typeof setup[key] === 'object' && setup[key] !== null) {
+      if (
+        key === 'selectedSpreadsheet' &&
+        (setup[key].spreadsheetId !== values[key].spreadsheetId ||
+          setup[key].sheetName !== values[key].sheetName)
+      ) {
+        shouldUpdate = true
+        break
+      }
+
+      if (key === 'spreadsheets' && setup[key].length !== values[key].length) {
+        shouldUpdate = true
+        break
+      }
+      continue
+    }
+
+    if (setup[key] !== values[key]) {
+      shouldUpdate = true
+      break
+    }
+  }
+  return shouldUpdate
 }
 
 export default SetupForm

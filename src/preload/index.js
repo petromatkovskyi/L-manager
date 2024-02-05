@@ -21,8 +21,8 @@ contextBridge.exposeInMainWorld('electronApi', {
     const res = await ipcRenderer.invoke('downloadFile', data)
     return res
   },
-  unArchive: (path) => {
-    ipcRenderer.invoke('unArchive', path)
+  convertFiles: (path) => {
+    ipcRenderer.invoke('convertFiles', path)
   },
   choosePath: async () => {
     const path = await ipcRenderer.invoke('choosePath')
@@ -52,6 +52,8 @@ contextBridge.exposeInMainWorld('electronApi', {
   },
   fetchTakenFrames: async () => ipcRenderer.invoke('fetchTakenFrames'),
   deleteFramesData: (id) => ipcRenderer.invoke('deleteFramesData', id),
+  deleteSpreadsheet: async (spreadsheet) =>
+    await ipcRenderer.invoke('deleteSpreadsheet', spreadsheet),
   isPathValid: async (path) => await ipcRenderer.invoke('isPathValid', path),
 
   currLocation: (callback) => ipcRenderer.on('currLocation', callback),
