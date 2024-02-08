@@ -8,7 +8,8 @@ import { v4 as uuidv4 } from 'uuid'
 
 import { frames } from './Frames'
 import operators from './OPERATORS'
-import credentials from './cred/credentials.js'
+
+const credentials = JSON.parse(import.meta.env.MAIN_VITE_CRED)
 
 const SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 
